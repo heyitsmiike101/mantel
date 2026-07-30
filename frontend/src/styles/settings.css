@@ -391,3 +391,10 @@ code {
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* A static row whose content reads as one line rather than stacking. */
+.row__name--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}

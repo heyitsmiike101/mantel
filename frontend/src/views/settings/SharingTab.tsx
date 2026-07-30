@@ -76,8 +76,8 @@ export function SharingTab() {
 
       {calendars.map((c) => (
         <div key={c.id} className="row">
-          <div className="row__name row__name--static">
-            <span className="swatch" style={{ background: c.color, marginRight: 8 }} />
+          <div className="row__name row__name--static row__name--inline">
+            <span className="swatch" style={{ background: c.color }} />
             {c.name}
           </div>
           <button
