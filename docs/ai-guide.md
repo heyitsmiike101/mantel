@@ -180,12 +180,22 @@ new `position`.
 | Dashboard | `GET /api/dashboard/widget-types`, `GET/POST /api/dashboard/widgets`, `PATCH/DELETE /api/dashboard/widgets/{id}` |
 | Photos    | `GET/POST /api/photos`, `GET /api/photos/{id}/file`, `DELETE /api/photos/{id}` |
 | Weather   | `GET /api/weather`, `GET /api/weather/search?q=`                              |
+| Lists     | `GET/POST /api/lists`, `GET/PATCH/DELETE /api/lists/{id}`, `POST /api/lists/{id}/items`, `PATCH/DELETE /api/lists/{id}/items/{item_id}`, `POST /api/lists/{id}/clear-checked` |
 | Sync      | `GET /api/sync/status`, `POST /api/sync/run`                                  |
 | Settings  | `GET/PATCH /api/settings`                                                     |
 
 Photos are screensaver images. `POST /api/photos` takes multipart form-data under `file` and
 accepts JPEG, PNG or WebP; anything that isn't a decodable image is rejected regardless of its
 filename or declared content type.
+
+Lists are shared by the whole household — there are no private lists. `GET /api/lists` returns
+each list with its items already sorted (unchecked first). Adding to a grocery list is one
+call:
+
+```http
+POST /api/lists/1/items
+{ "text": "Milk" }
+```
 
 `GET /api/weather` never returns an error status. Check `available`; when it is false, `reason`
 explains why. `stale: true` means the upstream service was unreachable and the data came from

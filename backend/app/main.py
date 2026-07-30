@@ -16,6 +16,7 @@ from .routers import (
     calendars,
     dashboard,
     events,
+    lists,
     meta,
     photos,
     sync,
@@ -89,6 +90,7 @@ app.include_router(sync.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(photos.router, prefix="/api")
 app.include_router(weather.router, prefix="/api")
+app.include_router(lists.router, prefix="/api")
 
 
 if STATIC_DIR:

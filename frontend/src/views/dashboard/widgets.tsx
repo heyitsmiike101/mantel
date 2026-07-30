@@ -1,6 +1,9 @@
 import { addDays, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from 'date-fns'
 import { useEffect, useState } from 'react'
-import { useEvents, useUsers, useWeather } from '../../api/hooks'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../api/client'
+import { useEntityMutation, useEvents, useUsers, useWeather } from '../../api/hooks'
+import type { SharedList } from '../../api/types'
 import type { CalendarEvent } from '../../api/types'
 import { overlapsDay } from '../calendar/overlap'
 
@@ -195,6 +198,92 @@ function Note({ config, onConfigChange }: WidgetProps) {
   )
 }
 
+// --------------------------------- List --------------------------------------
+
+function ListWidget({ config }: WidgetProps) {
+  const listId = num(config, 'list_id', 0)
+  const hideChecked = config.hide_checked === true
+  const [text, setText] = useState('')
+
+  const { data: lists = [] } = useQuery({
+    queryKey: ['lists'],
+    queryFn: () => api.get<SharedList[]>('/lists'),
+    refetchInterval: 30_000,
+  })
+
+  const list = lists.find((l) => l.id === listId) ?? lists[0]
+
+  const addItem = useEntityMutation(
+    (body: { text: string }) => api.post(`/lists/${list?.id}/items`, body),
+    ['lists'],
+  )
+  const toggle = useEntityMutation(
+    ({ id, checked }: { id: number; checked: boolean }) =>
+      api.patch(`/lists/${list?.id}/items/${id}`, { checked }),
+    ['lists'],
+  )
+
+  if (!list) {
+    return (
+      <>
+        <div className="widget__head">
+          <h3>List</h3>
+        </div>
+        <p className="widget__empty">Create a list on the Lists page first.</p>
+      </>
+    )
+  }
+
+  const items = hideChecked ? list.items.filter((i) => !i.checked) : list.items
+
+  const submit = () => {
+    const value = text.trim()
+    if (!value) return
+    addItem.mutate({ text: value })
+    setText('')
+  }
+
+  return (
+    <>
+      <div className="widget__head">
+        <h3>
+          {list.icon} {list.name}
+        </h3>
+        <span className="listcard__count">{list.item_count}</span>
+      </div>
+
+      <ul className="listcard__items">
+        {items.slice(0, 12).map((item) => (
+          <li key={item.id} className="listitem" data-checked={item.checked}>
+            <button
+              className="listitem__check"
+              aria-label={item.checked ? `Uncheck ${item.text}` : `Check off ${item.text}`}
+              style={item.color && !item.checked ? { borderColor: item.color } : undefined}
+              onClick={() => toggle.mutate({ id: item.id, checked: !item.checked })}
+            >
+              {item.checked ? '✓' : ''}
+            </button>
+            <span className="listitem__text">{item.text}</span>
+          </li>
+        ))}
+      </ul>
+      {items.length === 0 && <p className="widget__empty">Nothing on this list.</p>}
+
+      <div className="listcard__add">
+        <input
+          value={text}
+          placeholder="Add an item"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+        <button className="btn btn--primary" onClick={submit}>
+          Add
+        </button>
+      </div>
+    </>
+  )
+}
+
 // -------------------------------- Weather ------------------------------------
 
 /** Condition text -> emoji. Both providers hand back short English phrases, so one
@@ -371,6 +460,7 @@ export const WIDGETS: Record<string, WidgetDef> = {
   clock: { component: Clock, label: 'Clock and date' },
   mini_month: { component: MiniMonth, label: 'Month at a glance' },
   weather: { component: Weather, label: 'Weather' },
+  list: { component: ListWidget, label: 'Shared list' },
   countdown: { component: Countdown, label: 'Countdown' },
   note: { component: Note, label: 'Family note' },
 }

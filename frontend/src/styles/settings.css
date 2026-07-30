@@ -232,3 +232,154 @@ code {
   gap: 6px;
   margin-bottom: 14px;
 }
+
+/* --------------------------------- lists ---------------------------------- */
+
+.lists {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.lists__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+
+.lists__title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--font-lg);
+}
+
+.lists__body {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.lists__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.listcard {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.listcard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.listcard__head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--font-md);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listcard__count {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.listcard__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.listitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  min-height: var(--touch);
+}
+
+.listitem[data-checked='true'] .listitem__text {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.listitem__check {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--accent);
+  font-size: var(--font-md);
+  line-height: 1;
+  flex: 0 0 auto;
+  /* The tap target is bigger than the box it draws -- a 30px checkbox is easy to
+     miss on a wall display, but a 44px one looks clumsy. */
+  box-shadow: 0 0 0 7px transparent;
+}
+
+.listitem[data-checked='true'] .listitem__check {
+  background: var(--bg-elev-2);
+}
+
+.listitem__text {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+
+.listitem__remove {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  min-width: var(--touch);
+}
+
+.listcard__add {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.listcard__add input,
+.listcard__add select {
+  flex: 1 1 140px;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: var(--font-md);
+  padding: 10px 12px;
+  min-height: var(--touch);
+}

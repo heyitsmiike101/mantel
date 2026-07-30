@@ -103,6 +103,25 @@ export interface PlaceMatch {
   label: string
 }
 
+export interface ListItem {
+  id: number
+  list_id: number
+  text: string
+  checked: boolean
+  assigned_user_id: number | null
+  color: string | null
+  sort_order: number
+}
+
+export interface SharedList {
+  id: number
+  name: string
+  icon: string | null
+  sort_order: number
+  item_count: number
+  items: ListItem[]
+}
+
 export interface AppSettings {
   first_day_of_week: number
   time_format_24h: boolean

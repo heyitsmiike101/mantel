@@ -14,6 +14,7 @@ and has no login because it lives behind your front door.
 - **Repeating events, filtered by person.** Tap a family member to see only their week
 - **A customizable dashboard wall** you build from widgets — weather, countdowns, agendas
 - **Weather with no API key**, from the National Weather Service or Open-Meteo
+- **Shared grocery and to-do lists** anyone can tick off from any screen
 - **Updates itself.** Wall tablets hard-reload on their own when you deploy a new version, so
   nobody has to go find the refresh button
 - **Runs on a Raspberry Pi.** Multi-architecture images for `amd64` and `arm64`

@@ -168,6 +168,38 @@ class Photo(TimestampMixin, Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class ShoppingList(TimestampMixin, Base):
+    """A shared list -- groceries, chores, packing. Not per-user: the whole point
+    is that anyone in the house can add to it from any screen."""
+
+    __tablename__ = "lists"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(16))
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    items: Mapped[list["ListItem"]] = relationship(
+        back_populates="list", cascade="all, delete-orphan"
+    )
+
+
+class ListItem(TimestampMixin, Base):
+    __tablename__ = "list_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    list_id: Mapped[int] = mapped_column(ForeignKey("lists.id", ondelete="CASCADE"), index=True)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    checked: Mapped[bool] = mapped_column(Boolean, default=False)
+    assigned_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    list: Mapped[ShoppingList] = relationship(back_populates="items")
+    assigned_to: Mapped[User | None] = relationship()
+
+
 class WeatherCache(Base):
     """Raw upstream responses, keyed by request. Kept in the database rather than
     memory so a restart doesn't leave the wall display blank until the next fetch."""

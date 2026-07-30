@@ -12,6 +12,7 @@ const NAV = [
   { to: '/calendar/week', icon: '📆', label: 'Week' },
   { to: '/calendar/month', icon: '🈷️', label: 'Month' },
   { to: '/dashboard', icon: '🧩', label: 'Dashboard' },
+  { to: '/lists', icon: '🛒', label: 'Lists' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
   { to: '/docs', icon: '📖', label: 'API' },
 ]

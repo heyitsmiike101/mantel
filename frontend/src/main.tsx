@@ -11,6 +11,7 @@ import './styles/screensaver.css'
 import { CalendarPage } from './views/calendar/CalendarPage'
 import { DashboardPage } from './views/dashboard/DashboardPage'
 import { DocsPage } from './views/docs/DocsPage'
+import { ListsPage } from './views/lists/ListsPage'
 import { SettingsPage } from './views/settings/SettingsPage'
 
 const queryClient = new QueryClient({
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/calendar/week" replace /> },
       { path: 'calendar/:view', element: <CalendarPage /> },
       { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'lists', element: <ListsPage /> },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'docs', element: <DocsPage /> },
       { path: '*', element: <Navigate to="/calendar/week" replace /> },

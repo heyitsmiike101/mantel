@@ -46,6 +46,16 @@ WIDGET_TYPES: list[WidgetTypeOut] = [
         config_schema={},
     ),
     WidgetTypeOut(
+        type="list",
+        name="Shared list",
+        description="A grocery or to-do list you can tick off from the wall.",
+        default_size="medium",
+        config_schema={
+            "list_id": "Which list to show; defaults to the first one",
+            "hide_checked": "true to hide items already ticked off",
+        },
+    ),
+    WidgetTypeOut(
         type="weather",
         name="Weather",
         description="Current conditions and the days ahead, for the location set in settings.",
