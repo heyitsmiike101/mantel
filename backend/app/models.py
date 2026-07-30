@@ -168,6 +168,17 @@ class Photo(TimestampMixin, Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class WeatherCache(Base):
+    """Raw upstream responses, keyed by request. Kept in the database rather than
+    memory so a restart doesn't leave the wall display blank until the next fetch."""
+
+    __tablename__ = "weather_cache"
+
+    key: Mapped[str] = mapped_column(String(255), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
 

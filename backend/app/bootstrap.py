@@ -23,6 +23,14 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "sleep_start_hour": 23,
     "sleep_end_hour": 7,
     "burn_in_shift": True,
+    # Weather. Empty coordinates mean the widget prompts for a location instead of
+    # guessing, which would be worse than asking.
+    "weather_enabled": True,
+    "weather_lat": None,
+    "weather_lon": None,
+    "weather_place": "",
+    "weather_provider": "auto",  # auto | nws | open-meteo
+    "weather_units": "imperial",  # imperial | metric
 }
 
 

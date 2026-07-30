@@ -361,3 +361,109 @@
   color: var(--text-dim);
   font-size: var(--font-sm);
 }
+
+/* -------------------------------- weather --------------------------------- */
+
+.wx__stale {
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  background: var(--bg-elev-2);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.wx__alert {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: var(--font-sm);
+}
+
+.wx__now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wx__icon {
+  font-size: calc(2.5rem * var(--scale));
+  line-height: 1;
+}
+
+.wx__temp {
+  font-size: calc(2.75rem * var(--scale));
+  font-weight: 300;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wx__deg {
+  font-size: 0.45em;
+  vertical-align: super;
+  color: var(--text-dim);
+}
+
+.wx__meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.wx__cond {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wx__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+}
+
+.wx__days {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.wx__day {
+  text-align: center;
+  min-width: 0;
+  padding: 6px 2px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.wx__dayname {
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.wx__dayicon {
+  font-size: calc(1.25rem * var(--scale));
+  line-height: 1.4;
+}
+
+.wx__dayhigh {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.wx__daylow {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.wx__daypop {
+  font-size: var(--font-xs);
+  color: var(--accent);
+}

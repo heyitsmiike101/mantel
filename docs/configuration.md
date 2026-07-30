@@ -126,6 +126,21 @@ which is enough for an LCD in a dark room but still draws power and still ages t
 real screen-off, see the screen-power section of
 [kiosk-setup.md](kiosk-setup.md) — on a Raspberry Pi that's `wlopm` on a cron schedule.
 
+### Settings → Weather
+
+Free and keyless: the **National Weather Service** inside the United States (which also brings
+watches and warnings), and **Open-Meteo** everywhere else. There is no account to create and no
+API key to paste. Set a location by searching for a town or postcode.
+
+| Setting      | Values                                    | Notes                                        |
+| ------------ | ----------------------------------------- | -------------------------------------------- |
+| **Location** | search by name                            | Stored as coordinates                        |
+| **Units**    | Fahrenheit, Celsius                       |                                              |
+| **Source**   | Automatic, Weather Service, Open-Meteo    | Automatic picks by location                  |
+
+Forecasts are cached for 30 minutes. If the weather service is unreachable the last good
+forecast keeps showing with a "cached" marker rather than the panel going blank.
+
 Also stored, currently only settable through the API (`PATCH /api/settings`):
 
 | Key                   | Default              | Notes                                          |

@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { AppSettings, CalendarEvent, CalendarInfo, EventInput, User } from './types'
+import type {
+  AppSettings,
+  CalendarEvent,
+  CalendarInfo,
+  EventInput,
+  User,
+  Weather,
+} from './types'
 
 export function useUsers() {
   return useQuery({ queryKey: ['users'], queryFn: () => api.get<User[]>('/users') })
@@ -12,6 +19,16 @@ export function useCalendars() {
 
 export function useSettings() {
   return useQuery({ queryKey: ['settings'], queryFn: () => api.get<AppSettings>('/settings') })
+}
+
+export function useWeather() {
+  return useQuery({
+    queryKey: ['weather'],
+    queryFn: () => api.get<Weather>('/weather'),
+    // Upstream data only moves every half hour; polling harder just annoys NWS.
+    refetchInterval: 15 * 60_000,
+    staleTime: 10 * 60_000,
+  })
 }
 
 export function useEvents(start: Date, end: Date, userIds: number[] = []) {

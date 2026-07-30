@@ -64,6 +64,45 @@ export interface Photo {
   url: string
 }
 
+export interface WeatherDay {
+  date: string
+  high: number | null
+  low: number | null
+  pop: number
+  short: string | null
+}
+
+export interface Weather {
+  available: boolean
+  stale: boolean
+  reason?: string
+  provider?: string
+  units?: string
+  place?: string | null
+  current?: {
+    temp: number | null
+    feels_like: number | null
+    humidity: number | null
+    short: string | null
+    pop: number
+    wind: string | null
+    wind_direction: string | null
+    is_daytime: boolean
+  } | null
+  days?: WeatherDay[]
+  hourly?: { time: string; temp: number | null; pop: number; short: string | null }[]
+  alerts?: { event: string; severity: string; headline: string }[]
+}
+
+export interface PlaceMatch {
+  name: string
+  admin1: string | null
+  country: string | null
+  latitude: number
+  longitude: number
+  label: string
+}
+
 export interface AppSettings {
   first_day_of_week: number
   time_format_24h: boolean
@@ -82,6 +121,12 @@ export interface AppSettings {
   sleep_start_hour: number
   sleep_end_hour: number
   burn_in_shift: boolean
+  weather_enabled: boolean
+  weather_lat: number | null
+  weather_lon: number | null
+  weather_place: string
+  weather_provider: 'auto' | 'nws' | 'open-meteo'
+  weather_units: 'imperial' | 'metric'
   server: {
     version: string
     google_configured: boolean

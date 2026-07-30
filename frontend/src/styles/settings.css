@@ -225,3 +225,10 @@ code {
 .docs__body th {
   background: var(--bg-elev);
 }
+
+.placelist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}

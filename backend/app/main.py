@@ -20,6 +20,7 @@ from .routers import (
     photos,
     sync,
     users,
+    weather,
 )
 from .routers import (
     settings as settings_router,
@@ -87,6 +88,7 @@ app.include_router(accounts.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(photos.router, prefix="/api")
+app.include_router(weather.router, prefix="/api")
 
 
 if STATIC_DIR:

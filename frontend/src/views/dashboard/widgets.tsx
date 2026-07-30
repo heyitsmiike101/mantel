@@ -1,6 +1,6 @@
 import { addDays, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from 'date-fns'
 import { useEffect, useState } from 'react'
-import { useEvents, useUsers } from '../../api/hooks'
+import { useEvents, useUsers, useWeather } from '../../api/hooks'
 import type { CalendarEvent } from '../../api/types'
 import { overlapsDay } from '../calendar/overlap'
 
@@ -195,6 +195,100 @@ function Note({ config, onConfigChange }: WidgetProps) {
   )
 }
 
+// -------------------------------- Weather ------------------------------------
+
+/** Condition text -> emoji. Both providers hand back short English phrases, so one
+ *  keyword table covers them. */
+function weatherIcon(short: string | null | undefined, daytime = true): string {
+  const t = (short ?? '').toLowerCase()
+  if (t.includes('thunder')) return '⛈️'
+  if (t.includes('snow') || t.includes('flurr')) return '🌨️'
+  if (t.includes('sleet') || t.includes('freezing')) return '🧊'
+  if (t.includes('rain') || t.includes('shower') || t.includes('drizzle')) return '🌧️'
+  if (t.includes('fog') || t.includes('haze') || t.includes('mist')) return '🌫️'
+  if (t.includes('wind')) return '💨'
+  if (t.includes('cloud') || t.includes('overcast')) return '☁️'
+  if (t.includes('partly') || t.includes('mostly sunny')) return daytime ? '⛅' : '☁️'
+  if (t.includes('clear') || t.includes('sunny') || t.includes('fair'))
+    return daytime ? '☀️' : '🌙'
+  return daytime ? '🌤️' : '🌙'
+}
+
+function Weather({ config }: WidgetProps) {
+  const { data, isLoading } = useWeather()
+  const dayCount = num(config, 'days', 5)
+
+  if (isLoading) return <p className="widget__empty">Loading…</p>
+  if (!data?.available) {
+    return (
+      <>
+        <div className="widget__head">
+          <h3>Weather</h3>
+        </div>
+        <p className="widget__empty">{data?.reason ?? 'Weather is unavailable.'}</p>
+      </>
+    )
+  }
+
+  const c = data.current
+  const unit = data.units === 'metric' ? 'C' : 'F'
+
+  return (
+    <>
+      <div className="widget__head">
+        <h3>{data.place ?? 'Weather'}</h3>
+        {data.stale && <span className="wx__stale">cached</span>}
+      </div>
+
+      {data.alerts?.map((a) => (
+        <div key={a.event} className="wx__alert" title={a.headline}>
+          ⚠️ {a.event}
+        </div>
+      ))}
+
+      {c && (
+        <div className="wx__now">
+          <div className="wx__icon">{weatherIcon(c.short, c.is_daytime)}</div>
+          <div className="wx__temp">
+            {c.temp}
+            <span className="wx__deg">°{unit}</span>
+          </div>
+          <div className="wx__meta">
+            <div className="wx__cond">{c.short}</div>
+            <div className="wx__pills">
+              {c.feels_like !== null && c.feels_like !== c.temp && (
+                <span>Feels {c.feels_like}°</span>
+              )}
+              {c.pop > 0 && <span>{c.pop}% rain</span>}
+              {c.humidity !== null && <span>{c.humidity}% humidity</span>}
+              {c.wind && <span>{c.wind}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="wx__days">
+        {(data.days ?? []).slice(0, dayCount).map((d, i) => (
+          <div key={d.date} className="wx__day">
+            <div className="wx__dayname">{i === 0 ? 'Today' : dayLabel(d.date)}</div>
+            <div className="wx__dayicon">{weatherIcon(d.short)}</div>
+            <div className="wx__dayhigh">{d.high ?? '–'}°</div>
+            <div className="wx__daylow">{d.low ?? '–'}°</div>
+            {d.pop > 20 && <div className="wx__daypop">{d.pop}%</div>}
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+/** Dates arrive as plain YYYY-MM-DD; parsing them with new Date() would treat
+ *  them as UTC midnight and shift the weekday for anyone west of Greenwich. */
+function dayLabel(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return format(new Date(y, m - 1, d), 'EEE')
+}
+
 // ------------------------------- Countdown -----------------------------------
 
 function Countdown({ config, onConfigChange }: WidgetProps) {
@@ -276,6 +370,7 @@ export const WIDGETS: Record<string, WidgetDef> = {
   today_agenda: { component: TodayAgenda, label: 'Today by person' },
   clock: { component: Clock, label: 'Clock and date' },
   mini_month: { component: MiniMonth, label: 'Month at a glance' },
+  weather: { component: Weather, label: 'Weather' },
   countdown: { component: Countdown, label: 'Countdown' },
   note: { component: Note, label: 'Family note' },
 }

@@ -46,6 +46,13 @@ WIDGET_TYPES: list[WidgetTypeOut] = [
         config_schema={},
     ),
     WidgetTypeOut(
+        type="weather",
+        name="Weather",
+        description="Current conditions and the days ahead, for the location set in settings.",
+        default_size="medium",
+        config_schema={"days": "How many forecast days to show (default 5)"},
+    ),
+    WidgetTypeOut(
         type="countdown",
         name="Countdown",
         description="Days until a date the family is looking forward to.",
