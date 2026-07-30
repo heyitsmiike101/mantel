@@ -4,10 +4,11 @@ import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../ap
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { AccountsTab } from './AccountsTab'
 import { ScreenTab } from './ScreenTab'
+import { SharingTab } from './SharingTab'
 import { WeatherTab } from './WeatherTab'
 import { PALETTE } from './palette'
 
-type Tab = 'people' | 'accounts' | 'calendars' | 'display' | 'screen' | 'weather'
+type Tab = 'people' | 'accounts' | 'calendars' | 'display' | 'screen' | 'weather' | 'sharing'
 
 const TAB_LABELS: Record<Tab, string> = {
   people: 'Family',
@@ -16,6 +17,7 @@ const TAB_LABELS: Record<Tab, string> = {
   display: 'Display',
   screen: 'Screen',
   weather: 'Weather',
+  sharing: 'Sharing',
 }
 
 export function SettingsPage() {
@@ -25,7 +27,7 @@ export function SettingsPage() {
   return (
     <div className="settings">
       <div className="settings__tabs">
-        {(['people', 'accounts', 'calendars', 'display', 'screen', 'weather'] as Tab[]).map((t) => (
+        {(['people', 'accounts', 'calendars', 'display', 'screen', 'weather', 'sharing'] as Tab[]).map((t) => (
           <button
             key={t}
             className="settings__tab"
@@ -43,6 +45,7 @@ export function SettingsPage() {
         {tab === 'display' && <DisplayTab />}
         {tab === 'screen' && <ScreenTab />}
         {tab === 'weather' && <WeatherTab />}
+        {tab === 'sharing' && <SharingTab />}
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import secrets
 
 from cryptography.fernet import Fernet, InvalidToken
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -35,6 +36,7 @@ def decrypt(value: str | None) -> str | None:
 
 
 _STATE_SALT = "google-oauth-state"
+_FEED_SALT = "calendar-feed"
 
 
 def sign_state(payload: dict) -> str:
@@ -48,3 +50,19 @@ def read_state(token: str, max_age_seconds: int = 900) -> dict | None:
         )
     except BadSignature:
         return None
+
+
+def feed_token() -> str:
+    """A stable secret for the read-only ICS feeds.
+
+    Derived from SECRET_KEY rather than stored, so it survives restarts, needs no
+    migration, and rotating SECRET_KEY rotates it. It is a bearer capability: the
+    URL is the credential, exactly like Google's own "secret address in iCal
+    format".
+    """
+    digest = hashlib.sha256(f"{_FEED_SALT}:{get_settings().secret_key}".encode()).digest()
+    return base64.urlsafe_b64encode(digest)[:32].decode()
+
+
+def valid_feed_token(candidate: str) -> bool:
+    return secrets.compare_digest(candidate or "", feed_token())

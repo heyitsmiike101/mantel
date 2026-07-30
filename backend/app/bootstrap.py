@@ -31,6 +31,11 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "weather_place": "",
     "weather_provider": "auto",  # auto | nws | open-meteo
     "weather_units": "imperial",  # imperial | metric
+    # Home Assistant. Optional; when set, a calendar change nudges HA to refresh
+    # immediately instead of waiting out its 24-hour poll.
+    "ha_base_url": "",
+    "ha_token": "",
+    "ha_entity_id": "calendar.family_calendar",
 }
 
 

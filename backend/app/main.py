@@ -16,6 +16,7 @@ from .routers import (
     calendars,
     dashboard,
     events,
+    feeds,
     lists,
     meta,
     photos,
@@ -91,6 +92,7 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(photos.router, prefix="/api")
 app.include_router(weather.router, prefix="/api")
 app.include_router(lists.router, prefix="/api")
+app.include_router(feeds.router, prefix="/api")
 
 
 if STATIC_DIR:

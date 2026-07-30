@@ -181,6 +181,7 @@ new `position`.
 | Photos    | `GET/POST /api/photos`, `GET /api/photos/{id}/file`, `DELETE /api/photos/{id}` |
 | Weather   | `GET /api/weather`, `GET /api/weather/search?q=`                              |
 | Lists     | `GET/POST /api/lists`, `GET/PATCH/DELETE /api/lists/{id}`, `POST /api/lists/{id}/items`, `PATCH/DELETE /api/lists/{id}/items/{item_id}`, `POST /api/lists/{id}/clear-checked` |
+| Feeds     | `GET /api/feeds/token`, `GET /api/feeds/all.ics?token=`, `GET /api/feeds/{calendar_id}.ics?token=` |
 | Sync      | `GET /api/sync/status`, `POST /api/sync/run`                                  |
 | Settings  | `GET/PATCH /api/settings`                                                     |
 
@@ -200,6 +201,10 @@ POST /api/lists/1/items
 `GET /api/weather` never returns an error status. Check `available`; when it is false, `reason`
 explains why. `stale: true` means the upstream service was unreachable and the data came from
 cache — still worth displaying.
+
+The `/api/feeds/*.ics` endpoints are the only ones that require a credential — the token from
+`GET /api/feeds/token` — because a feed URL is the one thing likely to be pasted into a service
+outside the house. Everything else is open on the LAN.
 
 `GET /api/version` is also how screens detect a new deployment — they poll it and hard-reload
 when the version changes.

@@ -383,3 +383,11 @@ code {
   padding: 10px 12px;
   min-height: var(--touch);
 }
+
+.feedurl {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-xs);
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}

@@ -141,6 +141,21 @@ API key to paste. Set a location by searching for a town or postcode.
 Forecasts are cached for 30 minutes. If the weather service is unreachable the last good
 forecast keeps showing with a "cached" marker rather than the panel going blank.
 
+### Settings → Sharing
+
+A read-only iCalendar feed so phones can subscribe and Home Assistant can read the calendar.
+See [sharing-and-home-assistant.md](sharing-and-home-assistant.md) for the walkthrough.
+
+| Setting                  | Notes                                                          |
+| ------------------------ | -------------------------------------------------------------- |
+| **Feed links**           | One for everything, one per calendar. The URL is the credential |
+| **Home Assistant URL**   | Optional; enables push-refresh so HA isn't a day stale          |
+| **Long-lived token**     | Created in Home Assistant under your profile → Security         |
+| **Calendar entity**      | The entity Remote Calendar created                              |
+
+The feed token is derived from `SECRET_KEY`, so it is stable across restarts and **rotating
+`SECRET_KEY` revokes every feed link**.
+
 Also stored, currently only settable through the API (`PATCH /api/settings`):
 
 | Key                   | Default              | Notes                                          |

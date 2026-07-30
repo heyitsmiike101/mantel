@@ -15,6 +15,7 @@ and has no login because it lives behind your front door.
 - **A customizable dashboard wall** you build from widgets — weather, countdowns, agendas
 - **Weather with no API key**, from the National Weather Service or Open-Meteo
 - **Shared grocery and to-do lists** anyone can tick off from any screen
+- **Subscribe on your phone**, and drop it into Home Assistant, with a read-only calendar feed
 - **Updates itself.** Wall tablets hard-reload on their own when you deploy a new version, so
   nobody has to go find the refresh button
 - **Runs on a Raspberry Pi.** Multi-architecture images for `amd64` and `arm64`
@@ -125,6 +126,7 @@ else you run at home.
 - **Guide written for AI agents:** `/api/ai-guide` — also readable at
   [docs/ai-guide.md](docs/ai-guide.md)
 - **Wall display setup:** [docs/kiosk-setup.md](docs/kiosk-setup.md)
+- **Phone subscriptions & Home Assistant:** [docs/sharing-and-home-assistant.md](docs/sharing-and-home-assistant.md)
 
 ```bash
 # What's on this week?

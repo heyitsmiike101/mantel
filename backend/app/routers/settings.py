@@ -6,6 +6,7 @@ from ..bootstrap import DEFAULT_SETTINGS
 from ..config import get_settings
 from ..db import get_db
 from ..models import AppSetting
+from ..services import homeassistant
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -53,3 +54,19 @@ def update_app_settings(payload: dict, db: Session = Depends(get_db)) -> dict:
             row.value = {"value": value}
     db.commit()
     return get_app_settings(db)
+
+
+@router.post(
+    "/test-home-assistant",
+    summary="Check the Home Assistant connection",
+    description=(
+        "Verifies the saved URL and token reach a Home Assistant instance, so a typo "
+        "surfaces immediately rather than as silently missing calendar updates weeks later."
+    ),
+)
+def test_home_assistant(db: Session = Depends(get_db)) -> dict:
+    stored = {row.key: row.value.get("value") for row in db.scalars(select(AppSetting))}
+    ok, message = homeassistant.test_connection(
+        str(stored.get("ha_base_url") or ""), str(stored.get("ha_token") or "")
+    )
+    return {"ok": ok, "message": message}

@@ -146,6 +146,9 @@ export interface AppSettings {
   weather_place: string
   weather_provider: 'auto' | 'nws' | 'open-meteo'
   weather_units: 'imperial' | 'metric'
+  ha_base_url: string
+  ha_token: string
+  ha_entity_id: string
   server: {
     version: string
     google_configured: boolean

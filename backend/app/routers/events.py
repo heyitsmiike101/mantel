@@ -9,6 +9,7 @@ from ..models import Calendar, Event
 from ..schemas import EventCreate, EventOut, EventUpdate
 from ..serializers import event_out
 from ..services import recurrence
+from ..services.notify import calendar_changed
 from ..services.pushqueue import mark_pending, request_push
 from ..timeutil import to_utc
 
@@ -150,6 +151,7 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)) -> EventOu
     db.add(ev)
     db.commit()
     request_push()
+    calendar_changed(db)
     return event_out(_load(db, ev.id))
 
 
@@ -191,6 +193,7 @@ def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_
     mark_pending(ev, ev.calendar, "pending_update")
     db.commit()
     request_push()
+    calendar_changed(db)
     return event_out(_load(db, event_id))
 
 
@@ -214,3 +217,4 @@ def delete_event(event_id: int, db: Session = Depends(get_db)) -> None:
         ev.sync_state = "pending_delete"
     db.commit()
     request_push()
+    calendar_changed(db)
