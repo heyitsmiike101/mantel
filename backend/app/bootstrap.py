@@ -12,6 +12,17 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "display_scale": "normal",  # normal | large | wall
     "day_start_hour": 7,
     "day_end_hour": 22,
+    # Screensaver / kiosk behaviour. A wall display is on 24/7, so idle handling
+    # and a nightly blackout are part of normal operation, not a nice-to-have.
+    "screensaver_enabled": True,
+    "screensaver_delay_minutes": 5,
+    "screensaver_mode": "auto",  # auto | photos | clock | off
+    "screensaver_shuffle": True,
+    "screensaver_seconds_per_photo": 20,
+    "sleep_enabled": False,
+    "sleep_start_hour": 23,
+    "sleep_end_hour": 7,
+    "burn_in_shift": True,
 }
 
 

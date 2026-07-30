@@ -1,0 +1,218 @@
+/* ------------------------------ screensaver ------------------------------- */
+
+.saver {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: none;
+  animation: saver-in 700ms ease both;
+}
+
+@keyframes saver-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.saver__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: saver-in 1200ms ease both;
+}
+
+.saver__preload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.saver__overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 40px;
+  text-align: left;
+  /* A gradient rather than a solid panel so it reads over any photo. */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+.saver__overlay-time {
+  font-size: calc(4rem * var(--scale));
+  font-weight: 200;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.saver__overlay-date {
+  font-size: calc(1.25rem * var(--scale));
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 4px;
+}
+
+/* ------------------------------ clock screen ------------------------------ */
+
+.saver__clockscreen {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 40px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.saver__time {
+  font-size: calc(8rem * var(--scale));
+  font-weight: 200;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.saver__date {
+  font-size: calc(1.75rem * var(--scale));
+  color: var(--text-dim);
+  margin-bottom: 24px;
+}
+
+.saver__agenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.saver__agenda li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: calc(1.25rem * var(--scale));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.saver__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.saver__agenda-time {
+  color: var(--text-dim);
+  min-width: 6.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+.saver__agenda-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------- sleep ----------------------------------- */
+
+.saver--sleep {
+  background: #000;
+}
+
+.saver__sleeptime {
+  /* Just readable in a dark hallway, dim enough not to light the room. */
+  font-size: calc(5rem * var(--scale));
+  font-weight: 200;
+  color: #2a2a2a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------ photo library ----------------------------- */
+
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-bottom: 14px;
+  min-height: var(--touch);
+}
+
+.dropzone:active {
+  background: var(--bg-elev);
+  border-color: var(--accent);
+}
+
+.photogrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.photogrid__item {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-elev);
+}
+
+.photogrid__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photogrid__remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: var(--touch);
+  height: var(--touch);
+  min-width: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: var(--font-md);
+  line-height: 1;
+}
+
+/* ------------------------------ offline banner ---------------------------- */
+
+.offline {
+  position: fixed;
+  bottom: calc(var(--nav-size) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  .offline {
+    bottom: 12px;
+  }
+}

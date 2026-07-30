@@ -3,15 +3,17 @@ import { api } from '../../api/client'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { AccountsTab } from './AccountsTab'
+import { ScreenTab } from './ScreenTab'
 import { PALETTE } from './palette'
 
-type Tab = 'people' | 'accounts' | 'calendars' | 'display'
+type Tab = 'people' | 'accounts' | 'calendars' | 'display' | 'screen'
 
 const TAB_LABELS: Record<Tab, string> = {
   people: 'Family',
   accounts: 'Google',
   calendars: 'Calendars',
   display: 'Display',
+  screen: 'Screen',
 }
 
 export function SettingsPage() {
@@ -21,7 +23,7 @@ export function SettingsPage() {
   return (
     <div className="settings">
       <div className="settings__tabs">
-        {(['people', 'accounts', 'calendars', 'display'] as Tab[]).map((t) => (
+        {(['people', 'accounts', 'calendars', 'display', 'screen'] as Tab[]).map((t) => (
           <button
             key={t}
             className="settings__tab"
@@ -37,6 +39,7 @@ export function SettingsPage() {
         {tab === 'accounts' && <AccountsTab />}
         {tab === 'calendars' && <CalendarsTab />}
         {tab === 'display' && <DisplayTab />}
+        {tab === 'screen' && <ScreenTab />}
       </div>
     </div>
   )

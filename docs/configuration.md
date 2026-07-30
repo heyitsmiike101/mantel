@@ -103,6 +103,29 @@ instantly — no restart.
 | **Clock**           | 12-hour, 24-hour               |                                                           |
 | **Day starts/ends** | any hour                       | The visible hour range in the time-grid views             |
 
+### Settings → Screen
+
+For a wall display that is on all day. All of it is per-installation, shared by every screen.
+
+| Setting                   | Values                              | Notes                                                           |
+| ------------------------- | ----------------------------------- | --------------------------------------------------------------- |
+| **Screensaver**           | photos-else-clock, photos, clock, off | What appears when nobody has touched the screen                 |
+| **Starts after**          | 1–60 minutes                        | Idle time before the screensaver appears                        |
+| **Seconds per photo**     | 5–120 seconds                       | Slideshow pace                                                  |
+| **Shuffle**               | on / off                            | Random or upload order                                          |
+| **Dark overnight**        | on / off + hours                    | Blanks the page overnight. Crossing midnight (23→7) works        |
+| **Burn-in protection**    | on / off                            | Nudges the layout a few pixels every 10 minutes                  |
+
+Photos are uploaded on the same tab. They are re-encoded on upload, which resizes anything
+huge and **strips EXIF metadata including GPS coordinates** — worth knowing if you're
+uploading photos straight off a phone. They're stored in `photos/` next to the database, so
+the backup below already covers them.
+
+**A browser cannot switch a monitor's backlight off.** The overnight setting blanks the *page*,
+which is enough for an LCD in a dark room but still draws power and still ages the panel. For
+real screen-off, see the screen-power section of
+[kiosk-setup.md](kiosk-setup.md) — on a Raspberry Pi that's `wlopm` on a cron schedule.
+
 Also stored, currently only settable through the API (`PATCH /api/settings`):
 
 | Key                   | Default              | Notes                                          |
@@ -118,6 +141,7 @@ Also stored, currently only settable through the API (`PATCH /api/settings`):
 | What                | Where                                                  |
 | ------------------- | ------------------------------------------------------ |
 | Database            | `family-calendar-data` Docker volume, `/data/family.db` |
+| Screensaver photos  | The same volume, `/data/photos/`                        |
 | Google tokens       | Encrypted inside that database                         |
 | Version             | The `VERSION` file at the repo root                    |
 | Server settings     | `.env`                                                 |

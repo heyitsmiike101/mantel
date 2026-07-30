@@ -15,6 +15,9 @@ and has no login because it lives behind your front door.
 - **Updates itself.** Wall tablets hard-reload on their own when you deploy a new version, so
   nobody has to go find the refresh button
 - **Runs on a Raspberry Pi.** Multi-architecture images for `amd64` and `arm64`
+- **Keeps working offline.** If the network drops, the wall display keeps showing the last
+  known schedule instead of going blank
+- **Photo screensaver** with burn-in protection and an overnight blackout
 - **Everything is an API**, documented for both humans and AI agents
 - **No subscription, no account, no cloud.** It's your data on your hardware
 

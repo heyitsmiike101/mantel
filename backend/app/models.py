@@ -148,6 +148,22 @@ class DashboardWidget(TimestampMixin, Base):
     config: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class Photo(TimestampMixin, Base):
+    """Screensaver photos. The file itself lives on disk under PHOTO_DIR; only the
+    generated filename is stored, never anything the uploader controls."""
+
+    __tablename__ = "photos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    filename: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    original_name: Mapped[str | None] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[int] = mapped_column(Integer, nullable=False)
+    height: Mapped[int] = mapped_column(Integer, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
 

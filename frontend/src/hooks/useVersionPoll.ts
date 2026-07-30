@@ -32,13 +32,18 @@ export function useVersionPoll() {
         if (cancelled) return
         setVersion(info.version)
         setBuildTime(info.build_time)
+        // Dispatched before the baseline check so the very first successful poll
+        // also clears any offline state.
+        window.dispatchEvent(new Event('famcal:reachable'))
         if (baseline.current === null) {
           baseline.current = info.version
           return
         }
         if (info.version !== baseline.current) pendingReload.current = true
       } catch {
-        /* server restarting mid-deploy; try again next tick */
+        // Either the server is restarting mid-deploy or the network is down.
+        // Either way the screen is showing stale data and should say so.
+        window.dispatchEvent(new Event('famcal:unreachable'))
       }
       if (pendingReload.current && reloadGuards === 0) window.location.reload()
     }

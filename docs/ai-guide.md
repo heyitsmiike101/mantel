@@ -150,8 +150,13 @@ new `position`.
 | Calendars | `GET/POST /api/calendars`, `GET/PATCH/DELETE /api/calendars/{id}`             |
 | Events    | `GET/POST /api/events`, `GET/PATCH/DELETE /api/events/{id}`                   |
 | Dashboard | `GET /api/dashboard/widget-types`, `GET/POST /api/dashboard/widgets`, `PATCH/DELETE /api/dashboard/widgets/{id}` |
+| Photos    | `GET/POST /api/photos`, `GET /api/photos/{id}/file`, `DELETE /api/photos/{id}` |
 | Sync      | `GET /api/sync/status`, `POST /api/sync/run`                                  |
 | Settings  | `GET/PATCH /api/settings`                                                     |
+
+Photos are screensaver images. `POST /api/photos` takes multipart form-data under `file` and
+accepts JPEG, PNG or WebP; anything that isn't a decodable image is rejected regardless of its
+filename or declared content type.
 
 `GET /api/version` is also how screens detect a new deployment — they poll it and hard-reload
 when the version changes.

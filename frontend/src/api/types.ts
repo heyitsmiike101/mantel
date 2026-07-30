@@ -51,6 +51,16 @@ export interface EventInput {
   all_day?: boolean
 }
 
+export interface Photo {
+  id: number
+  original_name: string | null
+  width: number
+  height: number
+  size_bytes: number
+  sort_order: number
+  url: string
+}
+
 export interface AppSettings {
   first_day_of_week: number
   time_format_24h: boolean
@@ -60,6 +70,15 @@ export interface AppSettings {
   display_scale: 'normal' | 'large' | 'wall'
   day_start_hour: number
   day_end_hour: number
+  screensaver_enabled: boolean
+  screensaver_delay_minutes: number
+  screensaver_mode: 'auto' | 'photos' | 'clock' | 'off'
+  screensaver_shuffle: boolean
+  screensaver_seconds_per_photo: number
+  sleep_enabled: boolean
+  sleep_start_hour: number
+  sleep_end_hour: number
+  burn_in_shift: boolean
   server: {
     version: string
     google_configured: boolean

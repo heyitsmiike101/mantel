@@ -18,6 +18,7 @@ from .routers import (
     dashboard,
     events,
     meta,
+    photos,
     sync,
     users,
 )
@@ -83,6 +84,7 @@ app.include_router(settings_router.router, prefix="/api")
 app.include_router(accounts.router, prefix="/api")
 app.include_router(sync.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(photos.router, prefix="/api")
 
 
 if STATIC_DIR:

@@ -7,6 +7,7 @@ import './styles/global.css'
 import './styles/calendar.css'
 import './styles/settings.css'
 import './styles/dashboard.css'
+import './styles/screensaver.css'
 import { CalendarPage } from './views/calendar/CalendarPage'
 import { DashboardPage } from './views/dashboard/DashboardPage'
 import { DocsPage } from './views/docs/DocsPage'
@@ -32,6 +33,14 @@ const router = createBrowserRouter([
     ],
   },
 ])
+
+// Registered after load so the worker never competes with the first paint.
+// The worker deliberately leaves /api/version alone -- see public/sw.js.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js')
+  })
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

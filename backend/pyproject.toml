@@ -17,6 +17,8 @@ dependencies = [
     "google-auth-oauthlib>=1.2",
     "google-api-python-client>=2.149",
     "itsdangerous>=2.2",
+    "pillow>=11.0",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]
