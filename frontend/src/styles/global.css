@@ -1,0 +1,201 @@
+:root {
+  --scale: 1;
+
+  --bg: #0f172a;
+  --bg-elev: #1e293b;
+  --bg-elev-2: #334155;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --accent: #38bdf8;
+  --danger: #f87171;
+
+  --radius: 14px;
+  --touch: 44px;
+  --nav-size: 76px;
+
+  --font-xs: calc(0.75rem * var(--scale));
+  --font-sm: calc(0.875rem * var(--scale));
+  --font-md: calc(1rem * var(--scale));
+  --font-lg: calc(1.25rem * var(--scale));
+  --font-xl: calc(1.75rem * var(--scale));
+
+  color-scheme: dark;
+}
+
+:root[data-scale='large'] {
+  --scale: 1.2;
+  --nav-size: 88px;
+}
+:root[data-scale='wall'] {
+  --scale: 1.45;
+  --nav-size: 100px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: var(--font-md);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* Kiosk hygiene: no text selection or long-press callouts on a wall display. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+select {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-height: var(--touch);
+  min-width: var(--touch);
+}
+
+/* ---- App shell: bottom nav in portrait, side rail in landscape ---- */
+
+.shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  grid-template-areas: 'main' 'nav';
+}
+
+.shell__main {
+  grid-area: main;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shell__nav {
+  grid-area: nav;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-bottom));
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+}
+
+@media (orientation: landscape) and (min-width: 700px) {
+  .shell {
+    grid-template-rows: 1fr;
+    grid-template-columns: auto 1fr;
+    grid-template-areas: 'nav main';
+  }
+  .shell__nav {
+    flex-direction: column;
+    width: var(--nav-size);
+    height: 100%;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    padding: max(8px, env(safe-area-inset-top)) 6px 8px;
+  }
+}
+
+.navbtn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  line-height: 1.1;
+  text-decoration: none;
+  min-height: var(--touch);
+}
+
+.navbtn__icon {
+  font-size: calc(1.4rem * var(--scale));
+}
+
+.navbtn[aria-current='page'] {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+
+.navbtn:active {
+  background: var(--bg-elev-2);
+}
+
+/* ---- Version badge ---- */
+
+.version-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-height: 0;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.about-popover {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 50;
+  padding: 20px;
+}
+
+.about-popover__card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-dim);
+  gap: 8px;
+  text-align: center;
+  padding: 24px;
+}

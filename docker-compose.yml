@@ -1,0 +1,23 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+        BUILD_TIME: ${BUILD_TIME:-}
+    image: family-calendar:${APP_VERSION:-dev}
+    container_name: family-calendar
+    restart: unless-stopped
+    ports:
+      - '${PORT:-8080}:8080'
+    volumes:
+      - family-calendar-data:/data
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_VERSION: ${APP_VERSION:-dev}
+      BUILD_TIME: ${BUILD_TIME:-}
+
+volumes:
+  family-calendar-data:

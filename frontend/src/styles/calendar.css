@@ -1,0 +1,443 @@
+.calpage {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  /* Without an explicit 0-minimum column, the toolbar's min-content width would push the
+     whole page wider than a phone viewport. */
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.calpage__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+
+.calpage__titlewrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.calpage__title {
+  margin: 0;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calpage__loading {
+  color: var(--text-dim);
+}
+
+.iconbtn {
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-elev-2);
+  font-size: var(--font-md);
+  line-height: 1;
+}
+
+.iconbtn:active {
+  filter: brightness(1.3);
+}
+
+.iconbtn--primary {
+  background: var(--accent);
+  color: #06283a;
+  font-size: var(--font-lg);
+  font-weight: 700;
+}
+
+.calpage__body {
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+/* ------------------------------- Time grid -------------------------------- */
+
+.timegrid {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  --gutter: calc(52px * var(--scale));
+}
+
+.timegrid__head,
+.timegrid__allday {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(var(--days, 7), 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.timegrid__gutter-head {
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  text-align: center;
+}
+
+.timegrid__dayhead {
+  text-align: center;
+  padding: 6px 2px;
+  border-left: 1px solid var(--border);
+}
+
+.timegrid__dayname {
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.timegrid__daynum {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.timegrid__dayhead[data-today='true'] .timegrid__daynum {
+  background: var(--accent);
+  color: #06283a;
+  border-radius: 999px;
+  display: inline-block;
+  min-width: calc(2rem * var(--scale));
+  padding: 2px 6px;
+}
+
+.timegrid__alldaycell {
+  border-left: 1px solid var(--border);
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 34px;
+}
+
+.timegrid__body {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(var(--days, 7), 1fr);
+  overflow-y: auto;
+  min-height: 0;
+  position: relative;
+}
+
+.timegrid__gutter {
+  position: relative;
+}
+
+.timegrid__hourlabel {
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  text-align: right;
+  padding-right: 6px;
+  transform: translateY(-0.5em);
+}
+
+.timegrid__col {
+  position: relative;
+  border-left: 1px solid var(--border);
+}
+
+.timegrid__col[data-today='true'] {
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.timegrid__slot {
+  display: block;
+  width: 100%;
+  border-top: 1px solid rgba(51, 65, 85, 0.55);
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.timegrid__slot:active {
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.event-block {
+  position: absolute;
+  border-radius: 8px;
+  padding: 3px 6px;
+  overflow: hidden;
+  text-align: left;
+  color: #0b1220;
+  font-size: var(--font-xs);
+  line-height: 1.2;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.event-block__title {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-block__time {
+  opacity: 0.75;
+}
+
+.nowline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--danger);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.nowline::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.chip {
+  display: block;
+  width: 100%;
+  border-radius: 6px;
+  padding: 4px 6px;
+  color: #0b1220;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 26px;
+  min-width: 0;
+}
+
+/* --------------------------------- Month ---------------------------------- */
+
+.month {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.month__head {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.month__headcell {
+  text-align: center;
+  padding: 6px 0;
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.month__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  min-height: 0;
+}
+
+.month__cell {
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  padding: 2px;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.month__cell[data-outside='true'] {
+  opacity: 0.4;
+}
+
+.month__cell[data-today='true'] {
+  background: rgba(56, 189, 248, 0.07);
+}
+
+.month__daynum {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+  min-height: 30px;
+  min-width: 30px;
+}
+
+.month__cell[data-today='true'] .month__daynum {
+  background: var(--accent);
+  color: #06283a;
+  font-weight: 700;
+}
+
+.month__events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.chip--month {
+  min-height: 22px;
+  padding: 2px 5px;
+}
+
+.month__more {
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  padding-left: 4px;
+}
+
+/* --------------------------------- Modal ---------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 12px;
+}
+
+.modal__card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal__title {
+  margin: 0;
+  font-size: var(--font-lg);
+}
+
+.modal__note,
+.modal__error {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.modal__error {
+  color: var(--danger);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+  flex: 1;
+  min-width: 0;
+}
+
+.field--row {
+  flex-direction: row;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Side by side when there's room; stacked on a phone, where a squeezed
+   datetime-local input hides the time portion entirely. */
+.field--row > .field {
+  flex: 1 1 230px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: var(--font-md);
+  padding: 12px;
+  min-height: var(--touch);
+  width: 100%;
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  opacity: 0.6;
+}
+
+.toggle {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+.toggle--on {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+
+.modal__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.modal__spacer {
+  flex: 1;
+}
+
+.btn {
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: var(--bg-elev-2);
+  font-size: var(--font-md);
+}
+
+.btn--primary {
+  background: var(--accent);
+  color: #06283a;
+  font-weight: 700;
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}

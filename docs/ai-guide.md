@@ -1,0 +1,157 @@
+# Family Calendar — API guide for AI agents
+
+You are talking to a self-hosted family calendar that runs on a home network.
+**There is no authentication.** Every action the touchscreen UI can perform is available here.
+
+- Base URL: the host serving the UI, plus `/api` — e.g. `http://localhost:8080/api`
+- Full machine-readable schema: `GET /api/openapi.json`
+- Interactive docs: `/api/docs`
+
+## The model in one paragraph
+
+**Users** are family members; each has a name and a color. A user links one or more Google
+**accounts**. Each account exposes **calendars**, which a user *claims* — claiming is what makes
+a calendar visible and gives its events that person's color. **Events** live on a calendar. Events
+on Google-backed calendars sync both ways automatically; events on local calendars stay in
+this app. There is also a **dashboard** of widgets for the wall display.
+
+## Conventions
+
+- Timestamps are ISO-8601 with an offset: `2026-08-03T17:00:00Z`. Send any offset you like;
+  responses are always UTC.
+- All-day events use UTC midnight boundaries with an **exclusive end**. An event on Aug 1–2
+  is `start_at=2026-08-01T00:00:00Z`, `end_at=2026-08-03T00:00:00Z`.
+- Errors always return `{"error": {"code": "...", "message": "..."}}` — check `code`, show `message`.
+- Query events by date range. There is no pagination.
+- `PATCH` bodies are partial: send only what changes.
+
+## Common tasks
+
+### 1. See what's happening this week
+
+```http
+GET /api/events?start=2026-08-02T00:00:00Z&end=2026-08-09T00:00:00Z
+```
+
+```json
+[
+  {
+    "id": 12,
+    "calendar_id": 1,
+    "calendar_name": "Family",
+    "color": "#3b82f6",
+    "user_id": 1,
+    "title": "Soccer practice",
+    "location": "Riverside Park",
+    "start_at": "2026-08-03T17:00:00Z",
+    "end_at": "2026-08-03T18:30:00Z",
+    "all_day": false,
+    "origin": "local",
+    "sync_state": "synced",
+    "editable": true
+  }
+]
+```
+
+Every event carries its display `color` and the `user_id` of the calendar's owner, so you never
+need a second request to work out whose event it is. An event is returned if it *overlaps* the
+range at all.
+
+Useful filters: `&user_ids=1,2`, `&calendar_ids=3`, `&q=dentist`.
+
+### 2. Find out who is in the family and which calendars they own
+
+```http
+GET /api/users
+GET /api/calendars?claimed=true
+```
+
+Use `GET /api/calendars` to pick a `calendar_id` before creating anything. Only calendars with
+`"writable": true` accept new events.
+
+### 3. Add an event
+
+```http
+POST /api/events
+Content-Type: application/json
+
+{
+  "calendar_id": 1,
+  "title": "Dentist",
+  "location": "Main St",
+  "start_at": "2026-08-05T14:00:00Z",
+  "end_at": "2026-08-05T15:00:00Z"
+}
+```
+
+Returns `201` with the created event. If the calendar is Google-backed the response has
+`"sync_state": "pending_create"` — the event is already saved and will reach Google within
+seconds. Do not poll or retry.
+
+### 4. Move or rename an event
+
+```http
+PATCH /api/events/12
+{ "start_at": "2026-08-05T15:00:00Z", "end_at": "2026-08-05T16:00:00Z" }
+```
+
+### 5. Delete an event
+
+```http
+DELETE /api/events/12
+```
+
+Returns `204`. For Google calendars the event is removed from Google too.
+
+### 6. Add an all-day event
+
+```http
+POST /api/events
+{
+  "calendar_id": 1,
+  "title": "Beach trip",
+  "all_day": true,
+  "start_at": "2026-08-01T00:00:00Z",
+  "end_at": "2026-08-03T00:00:00Z"
+}
+```
+
+That covers August 1 and 2.
+
+### 7. Put something on the dashboard
+
+```http
+GET  /api/dashboard/widget-types      # discover what's available and what config each takes
+POST /api/dashboard/widgets
+{ "widget_type": "upcoming_events", "size": "medium", "config": { "days": 3 } }
+```
+
+Sizes are `small`, `medium`, `large`. Reorder with `PATCH /api/dashboard/widgets/{id}` and a
+new `position`.
+
+## Things that will trip you up
+
+- **Read-only calendars return 403.** Some Google calendars (holidays, shared subscriptions) are
+  subscribed read-only. Check `"writable"` on the calendar, or `"editable"` on the event, first.
+- **`end_at` must be after `start_at`** — otherwise `400 bad_request`.
+- **Unclaimed calendars are dim grey** and generally not shown on the wall. Claim one by setting
+  `claimed_by_user_id` via `PATCH /api/calendars/{id}`.
+- **Moving an event between calendars is not supported yet.** Delete and recreate instead.
+- **Recurring events** appear as individual instances (`"recurring": true`). Editing one instance
+  edits only that instance.
+
+## Everything else
+
+| Group     | Endpoints                                                                     |
+| --------- | ----------------------------------------------------------------------------- |
+| Meta      | `GET /api/version`, `/api/health`, `/api/ai-guide`                            |
+| Users     | `GET/POST /api/users`, `GET/PATCH/DELETE /api/users/{id}`                     |
+| Accounts  | `GET /api/accounts`, `GET /api/accounts/google/auth-url?user_id=`, `DELETE /api/accounts/{id}` |
+| Calendars | `GET/POST /api/calendars`, `GET/PATCH/DELETE /api/calendars/{id}`             |
+| Events    | `GET/POST /api/events`, `GET/PATCH/DELETE /api/events/{id}`                   |
+| Dashboard | `GET /api/dashboard/widget-types`, `GET/POST /api/dashboard/widgets`, `PATCH/DELETE /api/dashboard/widgets/{id}` |
+| Sync      | `GET /api/sync/status`, `POST /api/sync/run`                                  |
+| Settings  | `GET/PATCH /api/settings`                                                     |
+
+`GET /api/version` is also how screens detect a new deployment — they poll it and hard-reload
+when the version changes.
