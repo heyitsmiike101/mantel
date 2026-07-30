@@ -122,6 +122,14 @@ class EventCreate(EventBase):
     calendar_id: int = Field(
         description="Which calendar to write to. Use GET /api/calendars to find one."
     )
+    recurrence_rule: str | None = Field(
+        default=None,
+        description=(
+            "An iCalendar RRULE for a repeating event, without the 'RRULE:' prefix. "
+            "FREQ must be DAILY, WEEKLY, MONTHLY or YEARLY."
+        ),
+        examples=["FREQ=WEEKLY;BYDAY=MO,WE;COUNT=10"],
+    )
 
 
 class EventUpdate(BaseModel):
@@ -133,6 +141,9 @@ class EventUpdate(BaseModel):
     end_at: datetime | None = None
     all_day: bool | None = None
     timezone: str | None = None
+    recurrence_rule: str | None = Field(
+        default=None, description="Set to null to turn a repeating event into a single one."
+    )
 
 
 class EventOut(BaseModel):
@@ -150,6 +161,12 @@ class EventOut(BaseModel):
     all_day: bool
     timezone: str | None
     recurring: bool = Field(description="True if this instance came from a recurring series.")
+    recurrence_rule: str | None = Field(
+        default=None, description="The series' RRULE, when this app owns the recurrence."
+    )
+    recurrence_text: str | None = Field(
+        default=None, description="Human phrasing of the rule, e.g. 'Every week on Mon, Wed'."
+    )
     origin: str = Field(description="'local' or 'google'.")
     sync_state: str = Field(description="'synced' or a pending_* state awaiting push to Google.")
     editable: bool

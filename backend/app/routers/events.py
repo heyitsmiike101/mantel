@@ -1,13 +1,14 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
 from ..models import Calendar, Event
 from ..schemas import EventCreate, EventOut, EventUpdate
 from ..serializers import event_out
+from ..services import recurrence
 from ..services.pushqueue import mark_pending, request_push
 from ..timeutil import to_utc
 
@@ -66,18 +67,34 @@ def list_events(
     if end <= start:
         raise HTTPException(400, "`end` must be after `start`")
 
-    stmt = (
+    window_start, window_end = to_utc(start), to_utc(end)
+
+    # Two shapes of row live in this table. A plain event is selected by its own
+    # dates. A recurring series has only its FIRST occurrence's dates stored, so
+    # it can't be date-filtered in SQL -- it is fetched by rule and expanded below.
+    base = (
         select(Event)
         .join(Calendar)
         .where(
-            Event.start_at < to_utc(end),
-            Event.end_at > to_utc(start),
             Event.status == "confirmed",
             Event.sync_state != "pending_delete",
+            # A master already pushed to Google is represented by Google's own
+            # expanded instances; showing it too would duplicate every occurrence.
+            Event.is_master.is_(False),
         )
         .options(selectinload(Event.calendar).selectinload(Calendar.claimed_by))
-        .order_by(Event.start_at, Event.id)
     )
+
+    stmt = base.where(
+        or_(
+            and_(
+                Event.recurrence_rule.is_(None),
+                Event.start_at < window_end,
+                Event.end_at > window_start,
+            ),
+            and_(Event.recurrence_rule.is_not(None), Event.start_at < window_end),
+        )
+    ).order_by(Event.start_at, Event.id)
 
     if calendar_ids:
         ids = [int(i) for i in calendar_ids.split(",") if i.strip()]
@@ -92,7 +109,17 @@ def list_events(
     if q:
         stmt = stmt.where(Event.title.ilike(f"%{q}%"))
 
-    return [event_out(e) for e in db.scalars(stmt)]
+    rows = list(db.scalars(stmt))
+
+    expanded: list[Event] = []
+    for row in rows:
+        if row.recurrence_rule:
+            expanded.extend(recurrence.materialise(row, window_start, window_end))
+        else:
+            expanded.append(row)
+
+    expanded.sort(key=lambda e: (e.start_at, e.id))
+    return [event_out(e) for e in expanded]
 
 
 @router.post(
@@ -113,6 +140,11 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)) -> EventOu
     data = payload.model_dump()
     data["start_at"] = to_utc(data["start_at"])
     data["end_at"] = to_utc(data["end_at"])
+    if data.get("recurrence_rule"):
+        try:
+            data["recurrence_rule"] = recurrence.validate(data["recurrence_rule"])
+        except recurrence.RecurrenceError as exc:
+            raise HTTPException(400, str(exc)) from exc
     ev = Event(**data, origin="local")
     mark_pending(ev, cal, "pending_create")
     db.add(ev)
@@ -146,6 +178,11 @@ def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_
     for key in ("start_at", "end_at"):
         if changes.get(key) is not None:
             changes[key] = to_utc(changes[key])
+    if changes.get("recurrence_rule"):
+        try:
+            changes["recurrence_rule"] = recurrence.validate(changes["recurrence_rule"])
+        except recurrence.RecurrenceError as exc:
+            raise HTTPException(400, str(exc)) from exc
     for key, value in changes.items():
         setattr(ev, key, value)
     if ev.end_at <= ev.start_at:

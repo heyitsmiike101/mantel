@@ -441,3 +441,70 @@
 .btn:disabled {
   opacity: 0.5;
 }
+
+/* --------------------------- people filter chips -------------------------- */
+
+.peoplefilter {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+  scrollbar-width: none;
+}
+
+.peoplefilter::-webkit-scrollbar {
+  display: none;
+}
+
+.chiprow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+  min-height: var(--touch);
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.chipbtn[aria-current='page'] {
+  background: var(--bg-elev-2);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chipbtn--day {
+  width: var(--touch);
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.chipbtn__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.chipbtn--person[aria-current='page'] .chipbtn__dot {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+
+/* The calendar page grows a filter row between the toolbar and the grid. */
+.calpage[data-filtered='true'] {
+  grid-template-rows: auto auto 1fr;
+}

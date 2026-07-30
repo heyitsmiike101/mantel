@@ -36,6 +36,8 @@ export interface CalendarEvent {
   all_day: boolean
   timezone: string | null
   recurring: boolean
+  recurrence_rule: string | null
+  recurrence_text: string | null
   origin: 'local' | 'google'
   sync_state: string
   editable: boolean
@@ -49,6 +51,7 @@ export interface EventInput {
   start_at: string
   end_at: string
   all_day?: boolean
+  recurrence_rule?: string | null
 }
 
 export interface Photo {

@@ -14,13 +14,18 @@ export function useSettings() {
   return useQuery({ queryKey: ['settings'], queryFn: () => api.get<AppSettings>('/settings') })
 }
 
-export function useEvents(start: Date, end: Date) {
+export function useEvents(start: Date, end: Date, userIds: number[] = []) {
   const s = start.toISOString()
   const e = end.toISOString()
+  // Sorted so ['1','2'] and ['2','1'] share one cache entry instead of two.
+  const people = [...userIds].sort((a, b) => a - b).join(',')
   return useQuery({
-    queryKey: ['events', s, e],
-    queryFn: () =>
-      api.get<CalendarEvent[]>(`/events?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`),
+    queryKey: ['events', s, e, people],
+    queryFn: () => {
+      const params = new URLSearchParams({ start: s, end: e })
+      if (people) params.set('user_ids', people)
+      return api.get<CalendarEvent[]>(`/events?${params}`)
+    },
   })
 }
 

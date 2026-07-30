@@ -46,6 +46,17 @@ WIDGET_TYPES: list[WidgetTypeOut] = [
         config_schema={},
     ),
     WidgetTypeOut(
+        type="countdown",
+        name="Countdown",
+        description="Days until a date the family is looking forward to.",
+        default_size="small",
+        config_schema={
+            "label": "What you're counting down to, e.g. 'Disney'",
+            "date": "Target date as YYYY-MM-DD",
+            "emoji": "Optional emoji shown above the number",
+        },
+    ),
+    WidgetTypeOut(
         type="note",
         name="Family note",
         description="A free-text note everyone in the house can see and edit.",

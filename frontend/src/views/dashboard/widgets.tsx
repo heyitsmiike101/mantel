@@ -21,6 +21,18 @@ function num(config: Record<string, unknown>, key: string, fallback: number): nu
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback
 }
 
+function str(config: Record<string, unknown>, key: string, fallback = ''): string {
+  const v = config[key]
+  return typeof v === 'string' ? v : fallback
+}
+
+/** `user_ids` has always been advertised in the widget catalog; this is what
+ *  finally reads it. An empty or missing list means everyone. */
+function people(config: Record<string, unknown>): number[] {
+  const v = config.user_ids
+  return Array.isArray(v) ? v.filter((n): n is number => typeof n === 'number') : []
+}
+
 // ------------------------------ Upcoming events ------------------------------
 
 function UpcomingEvents({ config, onOpenEvent, onNewEvent }: WidgetProps) {
@@ -29,7 +41,7 @@ function UpcomingEvents({ config, onOpenEvent, onNewEvent }: WidgetProps) {
   // Anchored to midnight so the query key is stable across renders; "upcoming" is then
   // applied client-side against the actual current time.
   const dayStart = startOfToday()
-  const { data: events = [] } = useEvents(dayStart, addDays(dayStart, days))
+  const { data: events = [] } = useEvents(dayStart, addDays(dayStart, days), people(config))
   const now = new Date()
   const visible = events.filter((e) => new Date(e.end_at) > now).slice(0, max)
 
@@ -59,13 +71,15 @@ function UpcomingEvents({ config, onOpenEvent, onNewEvent }: WidgetProps) {
 
 // ------------------------------- Today agenda --------------------------------
 
-function TodayAgenda({ onOpenEvent, onNewEvent }: WidgetProps) {
+function TodayAgenda({ config, onOpenEvent, onNewEvent }: WidgetProps) {
   const { data: users = [] } = useUsers()
   const today = new Date()
   const dayStart = startOfToday()
-  const { data: events = [] } = useEvents(dayStart, addDays(dayStart, 1))
+  const only = people(config)
+  const { data: events = [] } = useEvents(dayStart, addDays(dayStart, 1), only)
 
-  const columns = users.length > 0 ? users : [{ id: -1, name: 'Family', color: '#64748b' }]
+  const shown = only.length ? users.filter((u) => only.includes(u.id)) : users
+  const columns = shown.length > 0 ? shown : [{ id: -1, name: 'Family', color: '#64748b' }]
 
   return (
     <>
@@ -181,6 +195,80 @@ function Note({ config, onConfigChange }: WidgetProps) {
   )
 }
 
+// ------------------------------- Countdown -----------------------------------
+
+function Countdown({ config, onConfigChange }: WidgetProps) {
+  const label = str(config, 'label', 'Set a date')
+  const emoji = str(config, 'emoji')
+  const target = str(config, 'date')
+  // No global widget-config editor exists, so the widget owns its own -- same
+  // pattern the note widget uses. Tap the card to edit, blur to save.
+  const [editing, setEditing] = useState(!target)
+
+  const days = (() => {
+    if (!target) return null
+    const [y, m, d] = target.split('-').map(Number)
+    if (!y || !m || !d) return null
+    const then = new Date(y, m - 1, d)
+    const today = startOfToday()
+    return Math.round((then.getTime() - today.getTime()) / 86_400_000)
+  })()
+
+  if (editing) {
+    return (
+      <div className="countdown countdown--editing">
+        <label className="field">
+          <span>Counting down to</span>
+          <input
+            value={label === 'Set a date' ? '' : label}
+            placeholder="Disney"
+            onChange={(e) => onConfigChange({ ...config, label: e.target.value })}
+          />
+        </label>
+        <label className="field">
+          <span>Date</span>
+          <input
+            type="date"
+            value={target}
+            onChange={(e) => onConfigChange({ ...config, date: e.target.value })}
+          />
+        </label>
+        <label className="field">
+          <span>Emoji (optional)</span>
+          <input
+            value={emoji}
+            placeholder="🎢"
+            maxLength={4}
+            onChange={(e) => onConfigChange({ ...config, emoji: e.target.value })}
+          />
+        </label>
+        <button className="btn btn--primary" onClick={() => setEditing(false)} disabled={!target}>
+          Done
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button className="countdown" onClick={() => setEditing(true)}>
+      {emoji && <div className="countdown__emoji">{emoji}</div>}
+      {days === null ? (
+        <div className="countdown__none">Tap to set a date</div>
+      ) : (
+        <>
+          <div className="countdown__number">{days === 0 ? 'Today' : Math.abs(days)}</div>
+          {days !== 0 && (
+            <div className="countdown__unit">
+              {Math.abs(days) === 1 ? 'day' : 'days'} {days > 0 ? 'to go' : 'ago'}
+            </div>
+          )}
+        </>
+      )}
+      <div className="countdown__label">{label}</div>
+    </button>
+  )
+}
+
 // -------------------------------- registry -----------------------------------
 
 export const WIDGETS: Record<string, WidgetDef> = {
@@ -188,6 +276,7 @@ export const WIDGETS: Record<string, WidgetDef> = {
   today_agenda: { component: TodayAgenda, label: 'Today by person' },
   clock: { component: Clock, label: 'Clock and date' },
   mini_month: { component: MiniMonth, label: 'Month at a glance' },
+  countdown: { component: Countdown, label: 'Countdown' },
   note: { component: Note, label: 'Family note' },
 }
 

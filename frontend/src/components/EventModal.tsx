@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api/hooks'
 import type { CalendarEvent } from '../api/types'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
+import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
 
 interface Props {
   event: CalendarEvent | null
@@ -39,6 +40,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
     ),
   )
   const [error, setError] = useState<string | null>(null)
+  const [repeat, setRepeat] = useState(() => parseRule(event?.recurrence_rule))
 
   useEffect(() => {
     if (calendarId === null && writable.length > 0) setCalendarId(writable[0].id)
@@ -71,6 +73,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
       start_at: startISO,
       end_at: endISO,
       all_day: allDay,
+      recurrence_rule: buildRule(repeat.freq as Freq, repeat.byday, repeat.until),
     }
     try {
       if (isNew) await create.mutateAsync(body)
@@ -98,6 +101,15 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
 
         {readOnly && (
           <p className="modal__note">This calendar is read-only in Google, so it can't be changed here.</p>
+        )}
+
+        {event?.recurring && !event.recurrence_rule && (
+          <p className="modal__note">
+            This is one occurrence of a repeating event. Changes apply to this occurrence only.
+          </p>
+        )}
+        {event?.recurrence_text && (
+          <p className="modal__note">{event.recurrence_text}</p>
         )}
 
         <label className="field">
@@ -147,6 +159,15 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
             />
           </label>
         </div>
+
+        <RecurrencePicker
+          freq={repeat.freq}
+          byday={repeat.byday}
+          until={repeat.until}
+          start={new Date(start)}
+          disabled={readOnly}
+          onChange={setRepeat}
+        />
 
         <button
           className={`toggle ${allDay ? 'toggle--on' : ''}`}

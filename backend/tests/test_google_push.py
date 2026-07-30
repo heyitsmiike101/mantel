@@ -300,3 +300,79 @@ def test_sync_run_endpoint_pushes_then_pulls(client, db, setup, fake):
     body = client.post("/api/sync/run").json()
     assert body["pushed"] == 1
     assert len(fake.inserted) == 1
+
+
+# --------------------------- recurring events --------------------------------
+
+
+def test_recurring_event_pushes_an_rrule(client, db, setup, fake):
+    client.post(
+        "/api/events",
+        json={
+            "calendar_id": setup["cal"].id,
+            "title": "Weekly sync",
+            "start_at": "2026-08-03T13:00:00Z",
+            "end_at": "2026-08-03T13:30:00Z",
+            "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO",
+        },
+    )
+    google_sync.push_pending(db)
+
+    body = fake.inserted[0]["body"]
+    assert body["recurrence"] == ["RRULE:FREQ=WEEKLY;BYDAY=MO"]
+
+
+def test_pushed_series_stops_being_expanded_locally(client, db, setup, fake):
+    """The duplication trap: our pull asks Google for expanded instances, so once
+    Google owns the series our own master must disappear from queries or every
+    occurrence would render twice."""
+    ev = client.post(
+        "/api/events",
+        json={
+            "calendar_id": setup["cal"].id,
+            "title": "Weekly sync",
+            "start_at": "2026-08-03T13:00:00Z",
+            "end_at": "2026-08-03T13:30:00Z",
+            "recurrence_rule": "FREQ=WEEKLY;COUNT=4",
+        },
+    ).json()
+
+    params = {"start": "2026-08-01T00:00:00Z", "end": "2026-09-01T00:00:00Z"}
+    before = client.get("/api/events", params=params).json()
+    assert len(before) == 4, "expanded locally while it is still ours"
+
+    google_sync.push_pending(db)
+
+    stored = db.get(Event, ev["id"])
+    db.refresh(stored)
+    assert stored.is_master is True
+
+    after = client.get("/api/events", params=params).json()
+    assert after == [], "Google's instances are now the only source"
+
+
+def test_single_events_never_become_masters(client, db, setup, fake):
+    ev = new_event(client, setup["cal"].id).json()
+    google_sync.push_pending(db)
+    stored = db.get(Event, ev["id"])
+    db.refresh(stored)
+    assert stored.is_master is False
+
+
+def test_local_recurring_events_are_never_masters(client, db, local_calendar):
+    """Nothing pushes a local calendar anywhere, so it keeps expanding forever."""
+    ev = client.post(
+        "/api/events",
+        json={
+            "calendar_id": local_calendar["id"],
+            "title": "Chores",
+            "start_at": "2026-08-03T13:00:00Z",
+            "end_at": "2026-08-03T13:30:00Z",
+            "recurrence_rule": "FREQ=DAILY;COUNT=3",
+        },
+    ).json()
+    assert ev["sync_state"] == "synced"
+    listed = client.get(
+        "/api/events", params={"start": "2026-08-01T00:00:00Z", "end": "2026-09-01T00:00:00Z"}
+    ).json()
+    assert len(listed) == 3

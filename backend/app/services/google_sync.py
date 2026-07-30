@@ -236,6 +236,9 @@ def _push_one(db: Session, cal: Calendar, event: Event) -> None:
         event.remote_updated_at = _parse_dt(updated.get("updated"))
 
     event.sync_state = "synced"
+    # Google now expands this series itself; stop rendering our copy of it.
+    if event.recurrence_rule:
+        event.is_master = True
     db.commit()
 
 
@@ -246,13 +249,19 @@ def _to_google_body(event: Event) -> dict:
     else:
         start = {"dateTime": _iso_utc(event.start_at)}
         end = {"dateTime": _iso_utc(event.end_at)}
-    return {
+    body = {
         "summary": event.title,
         "description": event.description,
         "location": event.location,
         "start": start,
         "end": end,
     }
+    if event.recurrence_rule:
+        # Google owns the expansion from here. Our pull asks for singleEvents, so
+        # what comes back are individual instances -- which is why the master gets
+        # hidden from queries once this push succeeds.
+        body["recurrence"] = [f"RRULE:{event.recurrence_rule}"]
+    return body
 
 
 # ------------------------------- helpers -------------------------------------

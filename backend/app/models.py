@@ -126,6 +126,10 @@ class Event(TimestampMixin, Base):
 
     recurrence_rule: Mapped[str | None] = mapped_column(Text)
     recurring_event_id: Mapped[str | None] = mapped_column(String(1024))
+    # True once a recurring event has been handed to Google. Google then returns
+    # its own expanded instances, so the master must stop being displayed or every
+    # occurrence would appear twice.
+    is_master: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
     status: Mapped[str] = mapped_column(String(32), default="confirmed")
     origin: Mapped[str] = mapped_column(String(16), default="local")

@@ -118,6 +118,29 @@ POST /api/events
 
 That covers August 1 and 2.
 
+### 6b. Make an event repeat
+
+```http
+POST /api/events
+{
+  "calendar_id": 1,
+  "title": "Piano lesson",
+  "start_at": "2026-08-03T17:00:00Z",
+  "end_at": "2026-08-03T18:00:00Z",
+  "recurrence_rule": "FREQ=WEEKLY;BYDAY=MO,WE"
+}
+```
+
+`recurrence_rule` is an iCalendar RRULE **without** the `RRULE:` prefix. `FREQ` must be
+`DAILY`, `WEEKLY`, `MONTHLY` or `YEARLY`; `INTERVAL`, `BYDAY`, `COUNT` and `UNTIL` all work.
+
+A repeating event is stored **once**. `GET /api/events` returns one entry per occurrence in
+the range, and every occurrence carries the same `id` — the id of the series. So `PATCH`ing
+that id changes the whole series, not one occurrence.
+
+Responses also include `recurrence_text`, a ready-to-display phrasing like
+`"Every week on Mon, Wed"`.
+
 ### 7. Put something on the dashboard
 
 ```http
@@ -137,8 +160,13 @@ new `position`.
 - **Unclaimed calendars are dim grey** and generally not shown on the wall. Claim one by setting
   `claimed_by_user_id` via `PATCH /api/calendars/{id}`.
 - **Moving an event between calendars is not supported yet.** Delete and recreate instead.
-- **Recurring events** appear as individual instances (`"recurring": true`). Editing one instance
-  edits only that instance.
+- **Two kinds of repeating event exist.** Ones this app owns have a `recurrence_rule`, are
+  stored once, and every returned occurrence shares the series' `id` — editing it edits the
+  whole series. Ones that came from Google arrive already expanded, with `recurrence_rule:
+  null` and `recurring: true`; each is a separate row, so editing one changes only that
+  occurrence.
+- **`user_ids` filters by person**, not by calendar: it matches whoever claimed the calendar an
+  event lives on.
 
 ## Everything else
 

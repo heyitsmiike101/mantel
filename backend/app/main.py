@@ -11,7 +11,6 @@ from .bootstrap import ensure_defaults
 from .config import get_settings
 from .db import SessionLocal, engine
 from .errors import register_error_handlers
-from .models import Base
 from .routers import (
     accounts,
     calendars,
@@ -25,6 +24,7 @@ from .routers import (
 from .routers import (
     settings as settings_router,
 )
+from .schema_sync import sync as sync_schema
 from .services import scheduler
 
 settings = get_settings()
@@ -41,7 +41,9 @@ STATIC_DIR = next(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Creates missing tables AND adds columns added by a newer release, so
+    # `git pull && ./run.sh` upgrades an existing database instead of 500ing.
+    sync_schema(engine)
     with SessionLocal() as db:
         ensure_defaults(db)
     tasks = scheduler.start(asyncio.get_running_loop())

@@ -11,7 +11,8 @@ and has no login because it lives behind your front door.
 - **Four views** — today, 3-day, week, month — all touch-first, portrait and landscape
 - **A person per color.** Everyone can link as many Google accounts as they like and claim the
   calendars they own
-- **A customizable dashboard wall** you build from widgets
+- **Repeating events, filtered by person.** Tap a family member to see only their week
+- **A customizable dashboard wall** you build from widgets, including countdowns
 - **Updates itself.** Wall tablets hard-reload on their own when you deploy a new version, so
   nobody has to go find the refresh button
 - **Runs on a Raspberry Pi.** Multi-architecture images for `amd64` and `arm64`
@@ -91,6 +92,9 @@ git pull
 
 Every open screen in the house picks up the new version within a minute. No refreshing, no
 walking around with a keyboard.
+
+Database changes are applied automatically at startup, so upgrading never needs a manual
+migration step.
 
 ## Configuration
 

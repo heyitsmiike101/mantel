@@ -1,5 +1,6 @@
 from .models import Calendar, Event
 from .schemas import CalendarOut, EventOut
+from .services.recurrence import describe
 from .timeutil import as_utc
 
 UNCLAIMED_COLOR = "#64748b"
@@ -46,7 +47,9 @@ def event_out(ev: Event) -> EventOut:
         end_at=as_utc(ev.end_at),
         all_day=ev.all_day,
         timezone=ev.timezone,
-        recurring=ev.recurring_event_id is not None,
+        recurring=ev.recurring_event_id is not None or ev.recurrence_rule is not None,
+        recurrence_rule=ev.recurrence_rule,
+        recurrence_text=describe(ev.recurrence_rule),
         origin=ev.origin,
         sync_state=ev.sync_state,
         editable=cal.writable,

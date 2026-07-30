@@ -1,9 +1,10 @@
 import { format, isSameMonth } from 'date-fns'
 import { useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { useEvents, useSettings } from '../../api/hooks'
+import { useEvents, useSettings, useUsers } from '../../api/hooks'
 import type { CalendarEvent } from '../../api/types'
 import { EventModal } from '../../components/EventModal'
+import { usePersonFilter } from '../../hooks/usePersonFilter'
 import { useSwipe } from '../../hooks/useSwipe'
 import { MonthView } from './MonthView'
 import { TimeGridView } from './TimeGridView'
@@ -16,6 +17,8 @@ const SCALE_FACTOR: Record<string, number> = { normal: 1, large: 1.2, wall: 1.45
 export function CalendarPage() {
   const { view } = useParams()
   const { data: settings } = useSettings()
+  const { data: users = [] } = useUsers()
+  const { userIds, toggle, clear, showingEveryone } = usePersonFilter()
   const [anchor, setAnchor] = useState(() => new Date())
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
   const [creatingAt, setCreatingAt] = useState<Date | null>(null)
@@ -24,7 +27,7 @@ export function CalendarPage() {
   const weekStartsOn = (settings?.first_day_of_week === 1 ? 1 : 0) as 0 | 1
   const kind = isViewKind(view) ? view : null
   const range = rangeFor(kind ?? 'week', anchor, weekStartsOn)
-  const { data: events = [], isLoading } = useEvents(range.start, range.end)
+  const { data: events = [], isLoading } = useEvents(range.start, range.end, userIds)
   const swipe = useSwipe((dir) => setAnchor((a) => step(kind ?? 'week', a, dir)))
 
   if (!kind) return <Navigate to="/calendar/week" replace />
@@ -41,7 +44,7 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="calpage">
+    <div className="calpage" data-filtered={users.length > 1 ? 'true' : undefined}>
       <header className="calpage__bar">
         <button className="iconbtn" onClick={() => setAnchor((a) => step(kind, a, -1))} aria-label="Previous">
           ‹
@@ -60,6 +63,33 @@ export function CalendarPage() {
           +
         </button>
       </header>
+
+      {users.length > 1 && (
+        <div className="peoplefilter">
+          <button
+            className="chipbtn"
+            aria-current={showingEveryone ? 'page' : undefined}
+            onClick={clear}
+          >
+            Everyone
+          </button>
+          {users.map((u) => {
+            const on = userIds.includes(u.id)
+            return (
+              <button
+                key={u.id}
+                className="chipbtn chipbtn--person"
+                aria-current={on ? 'page' : undefined}
+                style={on ? { background: u.color, borderColor: u.color, color: '#0b1220' } : { borderColor: u.color }}
+                onClick={() => toggle(u.id)}
+              >
+                <span className="chipbtn__dot" style={{ background: u.color }} />
+                {u.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="calpage__body" {...swipe}>
         {kind === 'month' ? (

@@ -307,3 +307,57 @@
   color: var(--text-dim);
   font-size: var(--font-sm);
 }
+
+/* ------------------------------- countdown -------------------------------- */
+
+.countdown {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+  padding: 8px 0;
+  width: 100%;
+  min-height: 0;
+  color: inherit;
+}
+
+.countdown--editing {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  text-align: left;
+}
+
+.countdown__emoji {
+  font-size: calc(2rem * var(--scale));
+  line-height: 1;
+}
+
+.countdown__number {
+  font-size: calc(3.25rem * var(--scale));
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown__unit {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.countdown__label {
+  margin-top: 6px;
+  font-size: var(--font-md);
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.countdown__none {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
