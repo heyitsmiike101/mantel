@@ -1,5 +1,10 @@
+# syntax=docker/dockerfile:1
+
 # ---------- Stage 1: build the React frontend ----------
-FROM node:22-alpine AS frontend
+# Pinned --platform=$BUILDPLATFORM so this stage always runs natively. Its output is
+# plain JS/CSS with no architecture, and emulating a Node build under QEMU for the
+# arm64 leg would take many minutes for an identical result.
+FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS frontend
 ARG APP_VERSION=dev
 WORKDIR /build
 COPY frontend/package*.json ./
@@ -9,7 +14,9 @@ ENV VITE_APP_VERSION=$APP_VERSION
 RUN npm run build
 
 # ---------- Stage 2: Python API serving the built frontend ----------
-FROM python:3.12-slim AS runtime
+# Digest-pinned so an amd64 and an arm64 build of the same tag can never drift onto
+# different upstream images.
+FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
 ARG APP_VERSION=dev
 ARG BUILD_TIME=""
 

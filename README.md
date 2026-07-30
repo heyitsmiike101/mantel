@@ -4,14 +4,19 @@ A self-hosted family calendar for a wall-mounted touchscreen — and every other
 house. Runs in one Docker container on your own network, syncs both ways with Google Calendar,
 and has no login because it lives behind your front door.
 
+- **Real two-way Google sync.** Add an event on the wall display and it appears in Google
+  within seconds — and the other way round. This is rarer than it sounds: Nextcloud can't do it
+  at all (Google requires OAuth, which Nextcloud can't do for calendar subscriptions), and Home
+  Assistant's CalDAV integration can only create events, never edit or delete them.
 - **Four views** — today, 3-day, week, month — all touch-first, portrait and landscape
-- **Two-way Google sync** for Gmail and Google Workspace accounts
 - **A person per color.** Everyone can link as many Google accounts as they like and claim the
   calendars they own
 - **A customizable dashboard wall** you build from widgets
 - **Updates itself.** Wall tablets hard-reload on their own when you deploy a new version, so
   nobody has to go find the refresh button
+- **Runs on a Raspberry Pi.** Multi-architecture images for `amd64` and `arm64`
 - **Everything is an API**, documented for both humans and AI agents
+- **No subscription, no account, no cloud.** It's your data on your hardware
 
 ## Quick start
 
@@ -49,6 +54,31 @@ The screen keeps itself current: data refreshes every minute, and when you deplo
 the page hard-reloads on its own within a minute. The version number is always visible in the
 corner of the navigation bar.
 
+**→ [docs/kiosk-setup.md](docs/kiosk-setup.md)** covers this properly: Chromium kiosk mode on a
+Raspberry Pi, Fully Kiosk on Android, Guided Access on an iPad, how to actually turn the screen
+off at night (the command most tutorials give you stopped working in Raspberry Pi OS Bookworm),
+and how to stop a permanently-charging wall tablet's battery from swelling.
+
+## Running on a Raspberry Pi
+
+The image is built for `linux/amd64` and `linux/arm64`, so a Pi 4 or Pi 5 runs the same tag as
+a desktop. `./run.sh` works unchanged on the Pi.
+
+You can also keep the Pi dumb: run the container on a NAS or server, and let the Pi be nothing
+but a browser pointed at it. That's lighter, and an SD card failure then costs you nothing.
+
+To build the multi-architecture image yourself:
+
+```bash
+./build.sh --push ghcr.io/yourname/family-calendar
+```
+
+On an x86 machine that needs QEMU registered once for the arm64 half:
+
+```bash
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+```
+
 ## Upgrading
 
 ```bash
@@ -85,6 +115,7 @@ else you run at home.
 - **Schema:** `/api/openapi.json`
 - **Guide written for AI agents:** `/api/ai-guide` — also readable at
   [docs/ai-guide.md](docs/ai-guide.md)
+- **Wall display setup:** [docs/kiosk-setup.md](docs/kiosk-setup.md)
 
 ```bash
 # What's on this week?
