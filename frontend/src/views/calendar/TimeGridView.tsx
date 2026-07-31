@@ -91,10 +91,11 @@ export function TimeGridView({
               />
             ))}
             {layout(events.filter((e) => !e.all_day && overlapsDay(e, day)), day, hourHeight).map(
-              ({ event, top, height, left, width }) => (
+              ({ event, top, height, left, width, compact }) => (
                 <button
                   key={event.id}
                   className="event-block"
+                  data-compact={compact || undefined}
                   style={{
                     top: top - dayStartHour * hourHeight,
                     height,
@@ -138,11 +139,22 @@ interface Positioned {
   height: number
   left: number
   width: number
+  /** Too short for the stacked title-over-time layout; render one line instead. */
+  compact: boolean
 }
+
+/** Shortest block we'll draw, as a fraction of an hour row -- 26px at the default 64px
+ *  hour, growing with the display scale so the text inside still fits. */
+const MIN_BLOCK_RATIO = 26 / 64
+
+/** A stacked title + time needs roughly this much of an hour row. Both the font size and
+ *  `hourHeight` scale by the same --scale factor, so one ratio holds for every scale:
+ *  two 1.2em lines of --font-xs (0.75rem) plus padding over a 4rem hour row. */
+const TWO_LINE_RATIO = 0.6
 
 /** Side-by-side placement for events that overlap in time, so nothing is hidden behind
  *  something else on a wall display nobody can hover. */
-function layout(events: CalendarEvent[], day: Date, hourHeight: number): Positioned[] {
+export function layout(events: CalendarEvent[], day: Date, hourHeight: number): Positioned[] {
   const dayStart = startOfLocalDay(day)
 
   const spans = events
@@ -168,13 +180,17 @@ function layout(events: CalendarEvent[], day: Date, hourHeight: number): Positio
   })
 
   const total = Math.max(1, columns.length)
-  return placed.map((p) => ({
-    event: p.event,
-    top: p.startH * hourHeight,
-    height: Math.max(26, (p.endH - p.startH) * hourHeight - 2),
-    left: (p.col / total) * 100,
-    width: (1 / total) * 100 - 1,
-  }))
+  return placed.map((p) => {
+    const height = Math.max(MIN_BLOCK_RATIO * hourHeight, (p.endH - p.startH) * hourHeight - 2)
+    return {
+      event: p.event,
+      top: p.startH * hourHeight,
+      height,
+      left: (p.col / total) * 100,
+      width: (1 / total) * 100 - 1,
+      compact: height < TWO_LINE_RATIO * hourHeight,
+    }
+  })
 }
 
 export function formatHour(hour: number, use24h: boolean): string {

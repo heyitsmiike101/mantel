@@ -192,6 +192,26 @@
 
 .event-block__time {
   opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* A 15- or 30-minute block is shorter than two lines of text, and flex would squash both
+   rows until they overlapped. Put the time and title on a single line instead --
+   "8:45am Standup" -- with the title taking whatever width is left. */
+.event-block[data-compact='true'] {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+}
+
+.event-block[data-compact='true'] .event-block__time {
+  order: -1;
+  flex: 0 0 auto;
+}
+
+.event-block[data-compact='true'] .event-block__title {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .nowline {
