@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.4
+
+**Publishing the Google app is now its own step, and you can't miss it.** It was a footnote
+inside another step, in a walkthrough that started collapsed — so the one setting that decides
+whether your family reconnects every 7 days was the easiest thing on the page to skip. It is now
+step 4 of 8, with a warning box explaining that publishing does not submit anything for review.
+The walkthrough also opens by default when Google isn't set up yet, and the "needs connecting
+again" banner now names Testing mode as the likely cause and links straight to the fix.
+
+**Updated for Google's current console.** The old *APIs & Services → OAuth consent screen* and
+*Credentials* pages are now the *Google Auth Platform*, split into Overview, Audience and
+Clients. Every link in the app and in docs/setup-google-oauth.md points at the current pages.
+
 ## 0.2.3
 
 **The API guide is a tab in Settings.** It used to be its own item in the navigation bar, which

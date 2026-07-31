@@ -45,7 +45,9 @@ export function GoogleTab() {
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showSteps, setShowSteps] = useState(false)
+  // null means "nobody has clicked the toggle yet", so the walkthrough can be open
+  // by default for someone who hasn't set Google up and closed for someone who has.
+  const [showSteps, setShowSteps] = useState<boolean | null>(null)
 
   const save = useEntityMutation(
     (patch: Partial<AppSettings>) => api.patch<AppSettings>('/settings', patch),
@@ -64,6 +66,7 @@ export function GoogleTab() {
   if (!settings) return null
 
   const configured = settings.server.google_configured
+  const stepsOpen = showSteps ?? !configured
   // Defaulting to the address this browser is on is almost always the right
   // answer, and it is the value Google must be told about verbatim.
   const baseUrl = settings.public_base_url || window.location.origin
@@ -109,7 +112,11 @@ export function GoogleTab() {
         </p>
       )}
 
-      <Steps open={showSteps} onToggle={() => setShowSteps((v) => !v)} redirectUri={redirectUri} />
+      <Steps
+        open={stepsOpen}
+        onToggle={() => setShowSteps(!stepsOpen)}
+        redirectUri={redirectUri}
+      />
 
       <h3 className="settings__h3">Your Google credentials</h3>
 
@@ -117,7 +124,7 @@ export function GoogleTab() {
         <div className="row__name row__name--static">
           This app's address
           <div className="hint">
-            How your family reaches this app. Must match what you gave Google in step 5.
+            How your family reaches this app. The redirect URI you gave Google must match it.
           </div>
         </div>
         <input
@@ -184,7 +191,18 @@ export function GoogleTab() {
 
       {status && status.accounts_needing_reauth.length > 0 && (
         <p className="banner banner--warn">
-          These need connecting again: {status.accounts_needing_reauth.join(', ')}
+          These need connecting again: {status.accounts_needing_reauth.join(', ')}.
+          <br />
+          If this keeps happening about once a week, your Google app is still in{' '}
+          <strong>Testing</strong> mode, which expires connections after 7 days. Open{' '}
+          <a
+            href="https://console.cloud.google.com/auth/audience"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Google Auth Platform → Audience
+          </a>{' '}
+          and press <strong>Publish app</strong> — see step 4 of the walkthrough above.
         </p>
       )}
 
@@ -325,27 +343,39 @@ function Steps({
             and press <strong>Enable</strong> on the Google Calendar API.
           </li>
           <li>
-            Open{' '}
+            Open the{' '}
             <ExternalLink
-              href="https://console.cloud.google.com/apis/credentials/consent"
-              label="OAuth consent screen"
+              href="https://console.cloud.google.com/auth/overview"
+              label="Google Auth Platform"
+            />{' '}
+            and press <strong>Get started</strong>. Give it an app name and pick your own
+            address as the support email, choose <strong>External</strong> for the audience,
+            and enter your email again as the contact.
+          </li>
+          <li>
+            <strong>Publish the app.</strong> Go to{' '}
+            <ExternalLink
+              href="https://console.cloud.google.com/auth/audience"
+              label="Google Auth Platform → Audience"
             />
-            . Choose <strong>External</strong>, then fill in an app name and your own email
-            twice. Skip the Scopes page.
-            <div className="steps__note">
-              Then press <strong>Publish App</strong>. If you leave it in Testing mode, Google
-              expires the connection every 7 days and everyone has to reconnect weekly.
-              Publishing an app that only you use needs no review.
+            . It will say <strong>Testing</strong> — press <strong>Publish app</strong> and
+            confirm, so it reads <strong>In production</strong>.
+            <div className="steps__note steps__note--warn">
+              Do not skip this. While the app is in Testing, Google <strong>expires every
+              connection after 7 days</strong>, so your whole family has to reconnect once a
+              week, and you are capped at 100 test users. Publishing does not send your app for
+              review — a calendar app used only by your own household needs no verification. It
+              stays private to whoever you give the URL to.
             </div>
           </li>
           <li>
             Go to{' '}
             <ExternalLink
-              href="https://console.cloud.google.com/apis/credentials"
-              label="Credentials"
+              href="https://console.cloud.google.com/auth/clients"
+              label="Google Auth Platform → Clients"
             />{' '}
-            → <strong>Create Credentials</strong> → <strong>OAuth client ID</strong> →
-            application type <strong>Web application</strong>.
+            → <strong>Create client</strong> → application type{' '}
+            <strong>Web application</strong>.
           </li>
           <li>
             Under <strong>Authorized redirect URIs</strong>, press <strong>Add URI</strong> and

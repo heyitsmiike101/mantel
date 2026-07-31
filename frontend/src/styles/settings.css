@@ -424,6 +424,13 @@ code {
   font-size: var(--font-sm);
 }
 
+/* For the one step people skip and then pay for weekly -- publishing the app. */
+.steps__note--warn {
+  border-left-color: var(--danger);
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--text);
+}
+
 .copybox {
   display: flex;
   align-items: center;

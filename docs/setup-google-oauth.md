@@ -35,36 +35,49 @@ There is no cost. The Calendar API usage of a single family is far inside the fr
 
 This is the screen your family sees when they connect their account.
 
-1. Go to **APIs & Services → OAuth consent screen**.
-2. Choose **External**, then **Create**.
+Google reorganised this area of the console: what used to be **APIs & Services → OAuth consent
+screen** is now the **Google Auth Platform**, split into Overview, Branding, Audience, Data
+Access and Clients. Old links redirect there.
+
+1. Go to <https://console.cloud.google.com/auth/overview> and click **Get started**.
+2. **App name**: `Family Calendar`. **User support email**: your email.
+3. **Audience**: choose **External**.
    (**Internal** only appears — and is the better choice — if you have Google Workspace and
-   everyone uses the same workspace domain.)
-3. Fill in:
-   - **App name**: `Family Calendar`
-   - **User support email**: your email
-   - **Developer contact email**: your email
-4. Click **Save and Continue** through the Scopes screen — you do not need to add scopes here.
-5. On **Test users**, click **Add Users** and add the Google address of every family member who
-   will connect an account. Then **Save and Continue**.
+   everyone uses the same workspace domain. Internal apps have no 7-day expiry and no
+   publishing step, so you can skip Step 4.)
+4. **Contact information**: your email again. Agree to the policy and click **Create**.
 
-### Important: publish the app
+You do not need to add scopes. The app requests calendar access at sign-in time.
 
-While the app is in **Testing** mode, Google **expires refresh tokens after 7 days**, which
-means everyone has to reconnect weekly. To avoid that:
+## Step 4 — Publish the app
 
-1. Go back to **OAuth consent screen**.
-2. Click **Publish App**, then confirm.
+**This is the step people skip, and it is the one that causes the most grief.**
 
-Publishing an app that only requests calendar access for its own users does not require
-Google's verification review. Your family will see an "Google hasn't verified this app" warning
-the first time they connect — that is expected for a self-hosted app. They click **Advanced →
-Go to Family Calendar (unsafe)** to continue. It is your own app; that warning simply means you
-haven't paid for a formal review.
+A new app starts in **Testing**, and in Testing mode Google **expires every authorization after
+7 days** — your whole family would have to reconnect once a week, forever. Testing mode also
+caps you at 100 test users, and only addresses you have explicitly listed can connect at all.
 
-## Step 4 — Create the OAuth client
+1. Go to <https://console.cloud.google.com/auth/audience>.
+2. Under **Publishing status** it will say **Testing**. Click **Publish app** and confirm.
+3. Check it now reads **In production**.
 
-1. Go to **APIs & Services → Credentials**.
-2. Click **Create Credentials → OAuth client ID**.
+**Publishing does not submit your app for review.** Verification is only required for apps
+requesting sensitive scopes from the general public; a calendar app used by your own household
+is not that, and nothing is listed anywhere — the app stays private to whoever you give the URL
+to. There is no cost and no waiting.
+
+Your family will still see a "Google hasn't verified this app" warning the first time they
+connect — that is expected for a self-hosted app. They click **Advanced → Go to Family Calendar
+(unsafe)** to continue. It is your own app; the warning simply means you haven't paid for a
+formal review.
+
+If you would rather stay in Testing mode, you must add each family member's Google address
+under **Test users** on that same Audience page, and accept that everyone reconnects weekly.
+
+## Step 5 — Create the OAuth client
+
+1. Go to <https://console.cloud.google.com/auth/clients>.
+2. Click **Create client**.
 3. **Application type**: `Web application`.
 4. **Name**: `Family Calendar`.
 5. Under **Authorized redirect URIs**, click **Add URI** and enter your app's address followed
@@ -82,12 +95,12 @@ haven't paid for a formal review.
 6. Click **Create**. Google shows your **Client ID** and **Client secret** — keep this dialog
    open for the next step.
 
-## Step 5 — Paste the credentials into the app
+## Step 6 — Paste the credentials into the app
 
 Open **Settings → Google** in Family Calendar. No file editing, and no restart.
 
 1. **This app's address** — how your family reaches the app, e.g. `http://192.168.1.50:8080`.
-   It must match what you registered in Step 4. The page shows the resulting **Redirect URI**
+   It must match what you registered in Step 5. The page shows the resulting **Redirect URI**
    right underneath, with a copy button, so you can check the two agree.
 2. **Client ID** and **Client secret** — paste both from the Google dialog.
 
@@ -98,7 +111,7 @@ readable back out of the app.
 > it's the key your Google credentials and everyone's tokens are encrypted with. See
 > [configuration.md](configuration.md).
 
-## Step 6 — Each person connects their email
+## Step 7 — Each person connects their email
 
 Still on **Settings → Google**, under **Connect an email**, every family member gets a row:
 
@@ -125,14 +138,17 @@ a few minutes to take effect.
 **"Google hasn't verified this app"**
 Expected for a self-hosted app. Click **Advanced → Go to Family Calendar (unsafe)**.
 
-**An account shows "Needs reconnecting"**
-The refresh token was revoked or expired. The usual cause is leaving the OAuth app in
-**Testing** mode, where Google expires tokens after 7 days — see Step 3. Reconnect the account
-from Settings → Google.
+**An account shows "Needs reconnecting" — especially about a week after setup**
+The refresh token was revoked or expired. The usual cause is by far the most common problem
+with this whole setup: the OAuth app is still in **Testing** mode, where Google expires every
+authorization after 7 days. Check
+<https://console.cloud.google.com/auth/audience> — if the publishing status says *Testing*,
+press **Publish app** (Step 4), then reconnect each account from Settings → Google. Once it
+says *In production*, connections last indefinitely.
 
 **`access_denied` when connecting**
-The Google account isn't on the test-user list and the app is still in Testing mode. Either add
-them as a test user or publish the app.
+The Google account isn't on the test-user list and the app is still in Testing mode. Publish the
+app (Step 4), or add them as a test user under **Audience → Test users**.
 
 **Calendars appear but no events**
 Make sure **Syncing** is switched on for that calendar in Settings → Google, then click
