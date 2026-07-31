@@ -10,3 +10,6 @@ __pycache__/
 node_modules/
 frontend/dist/
 .DS_Store
+
+# TypeScript incremental build state -- machine-local, not source.
+frontend/tsconfig.tsbuildinfo

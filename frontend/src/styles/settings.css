@@ -139,55 +139,30 @@ code {
   font-size: 0.9em;
 }
 
-/* ---------------------------------- docs ---------------------------------- */
+/* ----------------------- the API guide (Settings -> API) ------------------- */
 
-.docs {
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: 0;
-}
-
-.docs__bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-elev);
-}
-
-.docs__title {
-  flex: 1;
-  margin: 0;
-  font-size: var(--font-lg);
-}
-
-.docs__bar .iconbtn {
-  text-decoration: none;
-  display: grid;
-  place-items: center;
-  font-size: var(--font-sm);
-}
-
+/* The guide is long-form prose inside a settings panel, so it opts out of the
+   panel's tighter rhythm and gets a reading measure and selectable text. */
 .docs__body {
-  overflow-y: auto;
-  min-height: 0;
-  padding: 20px;
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
+  min-width: 0;
+  padding-top: 8px;
   line-height: 1.6;
   -webkit-user-select: text;
   user-select: text;
 }
 
-.docs__body h1 { font-size: var(--font-xl); margin: 0 0 8px; }
-.docs__body h2 { font-size: var(--font-lg); margin: 28px 0 8px; }
-.docs__body h3 { font-size: var(--font-md); margin: 20px 0 6px; }
+.docs__body h1 { font-size: var(--font-lg); margin: 24px 0 8px; }
+.docs__body h2 { font-size: var(--font-md); margin: 24px 0 8px; }
+.docs__body h3 { font-size: var(--font-md); margin: 18px 0 6px; }
+.docs__body h4 { font-size: var(--font-sm); margin: 14px 0 6px; }
 .docs__body p { margin: 0 0 12px; }
+
+.docs__body blockquote {
+  margin: 0 0 12px;
+  padding-left: 12px;
+  border-left: 3px solid var(--border);
+  color: var(--text-dim);
+}
 .docs__body ul,
 .docs__body ol { margin: 0 0 12px; padding-left: 22px; }
 .docs__body li { margin-bottom: 4px; }

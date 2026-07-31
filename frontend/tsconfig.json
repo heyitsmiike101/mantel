@@ -16,7 +16,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client"]
+    // "node" is here for the test files only -- Markdown.test.tsx reads the real
+    // docs/ai-guide.md off disk so the renderer is exercised against what ships.
+    "types": ["vite/client", "node"]
   },
   "include": ["src"]
 }

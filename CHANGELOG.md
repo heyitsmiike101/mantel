@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.3
+
+**The API guide is a tab in Settings.** It used to be its own item in the navigation bar, which
+put developer documentation on the same footing as the calendar itself on a wall display. It now
+lives under **Settings → API**, alongside links to the interactive docs, the OpenAPI schema and
+the raw markdown. An old `/docs` bookmark redirects there.
+
+**Fixed: the API guide hung the browser instead of rendering.** The little markdown renderer had
+a loop that could decline a line without consuming it, and one line of the guide — a paragraph
+beginning with a `code span` — hit exactly that case, so the tab locked up on a blank page. Every
+branch now advances, and the renderer is tested against the real guide the app ships rather than
+against a sample.
+
 ## 0.2.2
 
 **The family is on the calendar page.** Everyone appears as a chip along the top, filled with

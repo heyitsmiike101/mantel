@@ -122,7 +122,7 @@ every option is documented in **[docs/configuration.md](docs/configuration.md)**
 ## The API
 
 Every feature in the UI is backed by an endpoint, so you can wire the calendar into anything
-else you run at home.
+else you run at home. It is all collected in the app under **Settings → API**.
 
 - **Interactive docs:** `/api/docs`
 - **Schema:** `/api/openapi.json`

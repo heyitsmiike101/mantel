@@ -14,7 +14,6 @@ const NAV = [
   { to: '/dashboard', icon: '🧩', label: 'Dashboard' },
   { to: '/lists', icon: '🛒', label: 'Lists' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
-  { to: '/docs', icon: '📖', label: 'API' },
 ]
 
 export function App() {

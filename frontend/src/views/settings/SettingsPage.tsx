@@ -2,13 +2,25 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
+import { ApiTab } from './ApiTab'
 import { GoogleTab } from './GoogleTab'
 import { ScreenTab } from './ScreenTab'
 import { SharingTab } from './SharingTab'
 import { WeatherTab } from './WeatherTab'
 import { PALETTE } from './palette'
 
-type Tab = 'people' | 'google' | 'calendars' | 'display' | 'screen' | 'weather' | 'sharing'
+const TABS = [
+  'people',
+  'google',
+  'calendars',
+  'display',
+  'screen',
+  'weather',
+  'sharing',
+  'api',
+] as const
+
+type Tab = (typeof TABS)[number]
 
 const TAB_LABELS: Record<Tab, string> = {
   people: 'Family',
@@ -18,16 +30,18 @@ const TAB_LABELS: Record<Tab, string> = {
   screen: 'Screen',
   weather: 'Weather',
   sharing: 'Sharing',
+  api: 'API',
 }
 
 export function SettingsPage() {
-  const [tab, setTab] = useState<Tab>(
-    () => (new URLSearchParams(window.location.search).get('tab') as Tab) || 'people',
-  )
+  const [tab, setTab] = useState<Tab>(() => {
+    const requested = new URLSearchParams(window.location.search).get('tab')
+    return TABS.includes(requested as Tab) ? (requested as Tab) : 'people'
+  })
   return (
     <div className="settings">
       <div className="settings__tabs">
-        {(['people', 'google', 'calendars', 'display', 'screen', 'weather', 'sharing'] as Tab[]).map((t) => (
+        {TABS.map((t) => (
           <button
             key={t}
             className="settings__tab"
@@ -46,6 +60,7 @@ export function SettingsPage() {
         {tab === 'screen' && <ScreenTab />}
         {tab === 'weather' && <WeatherTab />}
         {tab === 'sharing' && <SharingTab />}
+        {tab === 'api' && <ApiTab />}
       </div>
     </div>
   )

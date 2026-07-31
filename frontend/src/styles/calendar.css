@@ -426,6 +426,16 @@
   font-size: var(--font-md);
 }
 
+/* Links that are buttons -- the API tab's "open the OpenAPI schema" style actions,
+   which have to be anchors so they can open in a new tab. */
+a.btn {
+  color: var(--text);
+  text-decoration: none;
+  display: inline-grid;
+  place-items: center;
+  min-height: var(--touch);
+}
+
 .btn--primary {
   background: var(--accent);
   color: #06283a;
