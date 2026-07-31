@@ -77,6 +77,15 @@ dashboard. **Google is optional** and can wait until you feel like it.
 To reach it from the other screens in the house, use the machine's LAN address instead, e.g.
 `http://192.168.1.50:8080`.
 
+**Prefer a prebuilt image?** Published for `amd64` and `arm64` on every release:
+
+```bash
+docker run -d --name mantel -p 8080:8080 \
+  -v mantel-data:/data \
+  -e SECRET_KEY="$(openssl rand -base64 32)" \
+  ghcr.io/heyitsmiike101/mantel:latest
+```
+
 > **Before you connect anyone's Google account**, put a real `SECRET_KEY` in `.env`. It's the
 > key your Google credentials and everyone's tokens are encrypted with. The command to generate
 > one is in the file.

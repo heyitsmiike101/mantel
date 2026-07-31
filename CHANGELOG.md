@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6
+
+- **Prebuilt images actually get a `latest` tag.** The release workflow only runs on a
+  `v*` tag, where `is_default_branch` is false — so the guard on the `latest` tag meant
+  it was never published. `docker run ghcr.io/heyitsmiike101/mantel:latest` works from
+  this release on.
+- Generating a `SECRET_KEY` is now `openssl rand -base64 32` instead of pulling a Python
+  image to call Fernet. Any string works; it gets hashed into a key.
+
 ## 0.2.5
 
 Two display fixes, both spotted while capturing the README screenshots.

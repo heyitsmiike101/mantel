@@ -36,7 +36,7 @@ Default is an insecure placeholder — **set your own**. It encrypts Google toke
 signs the OAuth state parameter. Generate one with:
 
 ```bash
-docker run --rm python:3.12-slim sh -c "pip -q install cryptography && python -c 'from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())'"
+openssl rand -base64 32
 ```
 
 Any string works (it gets hashed into a key if it isn't already a Fernet key), but a generated
