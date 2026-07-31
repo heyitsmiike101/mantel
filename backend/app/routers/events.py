@@ -93,7 +93,16 @@ def list_events(
                 Event.start_at < window_end,
                 Event.end_at > window_start,
             ),
-            and_(Event.recurrence_rule.is_not(None), Event.start_at < window_end),
+            and_(
+                Event.recurrence_rule.is_not(None),
+                Event.start_at < window_end,
+                # A finished series is skipped here rather than being loaded and
+                # re-expanded only to yield nothing. NULL means it never ends.
+                or_(
+                    Event.recurrence_end.is_(None),
+                    Event.recurrence_end > window_start,
+                ),
+            ),
         )
     ).order_by(Event.start_at, Event.id)
 
@@ -147,6 +156,9 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)) -> EventOu
         except recurrence.RecurrenceError as exc:
             raise HTTPException(400, str(exc)) from exc
     ev = Event(**data, origin="local")
+    ev.recurrence_end = recurrence.series_end(
+        ev.recurrence_rule, ev.start_at, ev.end_at - ev.start_at
+    )
     mark_pending(ev, cal, "pending_create")
     db.add(ev)
     db.commit()
@@ -189,6 +201,9 @@ def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_
         setattr(ev, key, value)
     if ev.end_at <= ev.start_at:
         raise HTTPException(400, "`end_at` must be after `start_at`")
+    ev.recurrence_end = recurrence.series_end(
+        ev.recurrence_rule, ev.start_at, ev.end_at - ev.start_at
+    )
 
     mark_pending(ev, ev.calendar, "pending_update")
     db.commit()

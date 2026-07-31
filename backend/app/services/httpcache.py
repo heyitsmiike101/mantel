@@ -12,6 +12,7 @@ reason ICS subscription import is not in this release.
 """
 
 import logging
+import threading
 
 import httpx
 from sqlalchemy.orm import Session
@@ -23,7 +24,13 @@ log = logging.getLogger(__name__)
 
 # NWS rejects requests without a User-Agent and asks for contact details in it.
 USER_AGENT = "FamilyCalendar/1.0 (+https://github.com/topics/family-calendar)"
-TIMEOUT_SECONDS = 15.0
+# Four sequential NWS calls at 15s each could pin a threadpool worker for a
+# minute; 8s keeps the worst case bounded while still tolerating a slow upstream.
+TIMEOUT_SECONDS = 8.0
+
+# One in-flight request per cache key. See `fetch`.
+_locks: dict[str, threading.Lock] = {}
+_locks_guard = threading.Lock()
 
 
 def get_cached(session: Session, key: str, ttl_s: int) -> tuple[str | None, bool]:
@@ -45,6 +52,11 @@ def put_cached(session: Session, key: str, payload: str) -> None:
     session.commit()
 
 
+def _lock_for(key: str) -> threading.Lock:
+    with _locks_guard:
+        return _locks.setdefault(key, threading.Lock())
+
+
 def fetch(
     session: Session,
     key: str,
@@ -57,11 +69,44 @@ def fetch(
     A warm cache short-circuits the network. A failed request falls back to
     whatever is cached, however old, rather than propagating the error -- a
     yesterday's forecast is far better than an empty panel.
+
+    Only one caller per key talks to the network at a time. Everyone else gets
+    the stale copy immediately instead of queueing behind it: four wall displays
+    refreshing on the same TTL boundary should cost one upstream request and one
+    blocked worker, not four of each. Callers with nothing cached at all do wait,
+    because on a cold start there is nothing better to show them.
     """
     cached, expired = get_cached(session, key, ttl_s)
     if cached is not None and not expired:
         return cached, False
 
+    lock = _lock_for(key)
+    if not lock.acquire(blocking=cached is None):
+        return cached, True
+
+    try:
+        # Another thread may have refreshed while this one waited for the lock.
+        # The read above opened a transaction, so this session is still on the
+        # pre-refresh snapshot and would re-fetch needlessly; ending it first is
+        # what lets the re-check actually see the other thread's commit. Safe on
+        # a read path, which is the only place this runs.
+        session.rollback()
+        cached, expired = get_cached(session, key, ttl_s)
+        if cached is not None and not expired:
+            return cached, False
+        return _fetch_locked(session, key, url, ttl_s, params, cached)
+    finally:
+        lock.release()
+
+
+def _fetch_locked(
+    session: Session,
+    key: str,
+    url: str,
+    ttl_s: int,
+    params: dict | None,
+    cached: str | None,
+) -> tuple[str | None, bool]:
     try:
         with httpx.Client(
             timeout=TIMEOUT_SECONDS,

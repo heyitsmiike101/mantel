@@ -40,7 +40,10 @@ const router = createBrowserRouter([
 // The worker deliberately leaves /api/version alone -- see public/sw.js.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js')
+    // The version is in the URL so a new release registers a new worker, whose
+    // activate step purges the previous release's caches.
+    const v = encodeURIComponent(import.meta.env.VITE_APP_VERSION ?? 'dev')
+    void navigator.serviceWorker.register(`/sw.js?v=${v}`)
   })
 }
 

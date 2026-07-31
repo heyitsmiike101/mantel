@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.2.1
+
+Fixes from a code review of the 0.2.0 release.
+
+- **Subscribed calendars no longer show repeating events twice.** Once a series
+  has been pushed to Google, Google's expanded instances are the record; the feed
+  was also exporting our copy's repeat rule, so subscribers rendered the whole
+  series a second time.
+- **Events added in Google Calendar now reach Home Assistant.** Only edits made
+  in this app were telling HA to refresh, so with HA's own polling switched off
+  (as the setup guide instructs) an event added on a phone never appeared there.
+- **The dashboard survives a network drop.** Its widget layout, lists and weather
+  weren't cached for offline use, so a wall display fell back to the empty-
+  dashboard placeholder — only the calendar views actually worked offline.
+- **Subscription links now use the address you're browsing on** instead of
+  `PUBLIC_BASE_URL`, which defaults to localhost and produced a link that
+  silently failed on phones.
+- A weather outage can no longer tie up the server: one refresh runs at a time
+  and everyone else is served the cached forecast immediately.
+- Repeating events that finished long ago are no longer re-expanded on every
+  calendar request.
+- A future upgrade that needs a manual migration now refuses to start instead of
+  booting onto an incomplete database.
+- Internal: fixed an ORM hazard in recurrence expansion, and Home Assistant
+  refreshes now coalesce onto one worker instead of a thread per write.
+
 ## 0.2.0
 
 Wall-display release: everything needed to actually mount this on a wall and live with it.

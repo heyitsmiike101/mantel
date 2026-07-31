@@ -25,6 +25,11 @@ from .models import Base
 log = logging.getLogger(__name__)
 
 
+class SchemaUpgradeError(RuntimeError):
+    """The database cannot be brought up to date automatically."""
+
+
+
 def sync(engine: Engine) -> list[str]:
     """Create missing tables, then add missing columns. Returns what changed."""
     Base.metadata.create_all(bind=engine)
@@ -49,12 +54,18 @@ def sync(engine: Engine) -> list[str]:
             default = _literal_default(column)
             if not column.nullable:
                 if default is None:
-                    log.error(
-                        "Cannot add required column %s.%s automatically; it needs a default.",
-                        table.name,
-                        column.name,
+                    # Refuse to start rather than skip. Carrying on would leave a
+                    # database missing a required column while the container
+                    # reports a clean boot, and the failure would surface later as
+                    # a 500 on every write to this table with only one stale log
+                    # line to explain it. Failing here puts it in front of whoever
+                    # ran the upgrade, while they are still watching.
+                    raise SchemaUpgradeError(
+                        f"Cannot add required column {table.name}.{column.name} "
+                        "automatically: it is NOT NULL and has no literal default. "
+                        "This release needs a manual migration step -- see the "
+                        "release notes before upgrading."
                     )
-                    continue
                 pieces.append("NOT NULL")
             if default is not None:
                 pieces.append(f"DEFAULT {default}")

@@ -13,13 +13,30 @@
  *   - hashed assets are immutable and safe to cache forever.
  */
 
-const VERSION = 'v1'
+// Taken from the ?v= on the registration URL (see main.tsx). A fixed constant
+// would mean the activate cleanup never fires, so every release's content-hashed
+// assets would pile up in the cache forever until the browser evicted the whole
+// origin -- taking the offline copy with it.
+const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev'
 const SHELL_CACHE = `famcal-shell-${VERSION}`
 const DATA_CACHE = `famcal-data-${VERSION}`
 
-// GET endpoints worth having a last-known copy of. Anything not listed falls
-// through to the network untouched.
-const CACHEABLE_API = ['/api/events', '/api/users', '/api/calendars', '/api/settings', '/api/photos']
+// Every GET a screen needs to render itself from cache; anything not listed
+// falls through to the network untouched. The dashboard is the
+// recommended kiosk route, so its widget layout belongs here just as much as the
+// calendar's events -- without it a network drop leaves the wall showing the
+// empty-dashboard placeholder.
+const CACHEABLE_API = [
+  '/api/events',
+  '/api/users',
+  '/api/calendars',
+  '/api/settings',
+  '/api/photos',
+  '/api/dashboard/widgets',
+  '/api/dashboard/widget-types',
+  '/api/lists',
+  '/api/weather',
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(['/'])))
@@ -33,7 +50,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k.startsWith('famcal-') && !k.endsWith(VERSION))
+            .filter((k) => k.startsWith('famcal-') && !k.endsWith(`-${VERSION}`))
             .map((k) => caches.delete(k)),
         ),
       )

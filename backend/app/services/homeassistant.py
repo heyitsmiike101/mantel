@@ -23,6 +23,16 @@ log = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 8.0
 
+# How long to gather further changes before sending. A bulk import through the
+# API produces hundreds of writes in a second; the nudge is idempotent, so they
+# should collapse into one call rather than one thread each.
+DEBOUNCE_SECONDS = 1.0
+
+_worker: threading.Thread | None = None
+_wake = threading.Event()
+_lock = threading.Lock()
+_pending: tuple[str, str, str] | None = None
+
 
 def notify(base_url: str, token: str, entity_id: str) -> None:
     """Ask HA to refresh a calendar entity now. Never raises."""
@@ -45,16 +55,45 @@ def notify(base_url: str, token: str, entity_id: str) -> None:
 
 
 def notify_async(base_url: str, token: str, entity_id: str) -> None:
-    """Same, off the request path.
+    """Queue a refresh, off the request path.
 
     A write handler must not wait on someone else's server -- if HA is powered
-    off, saving an event should still feel instant.
+    off, saving an event should still feel instant. Calls coalesce onto a single
+    long-lived worker: importing a season's worth of fixtures through the API
+    must not spawn a thread per event.
     """
+    global _worker
+
     if not (base_url and token and entity_id):
         return
-    threading.Thread(
-        target=notify, args=(base_url, token, entity_id), daemon=True
-    ).start()
+
+    with _lock:
+        globals()["_pending"] = (base_url, token, entity_id)
+        if _worker is None or not _worker.is_alive():
+            _worker = threading.Thread(target=_run, name="ha-notify", daemon=True)
+            _worker.start()
+    _wake.set()
+
+
+def _run() -> None:
+    """Drain queued nudges forever, collapsing bursts into one call."""
+    while True:
+        # No pending work: park until something arrives. The timeout lets an idle
+        # worker exit so a long-running server isn't holding a thread for nothing.
+        if not _wake.wait(timeout=300):
+            with _lock:
+                if _pending is None:
+                    return
+        _wake.clear()
+
+        # Let a burst finish arriving before sending.
+        threading.Event().wait(DEBOUNCE_SECONDS)
+
+        with _lock:
+            target = _pending
+            globals()["_pending"] = None
+        if target is not None:
+            notify(*target)
 
 
 def test_connection(base_url: str, token: str) -> tuple[bool, str]:

@@ -130,6 +130,10 @@ class Event(TimestampMixin, Base):
     # its own expanded instances, so the master must stop being displayed or every
     # occurrence would appear twice.
     is_master: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Last occurrence of a finite series, so a rule that finished years ago can be
+    # excluded in SQL instead of being re-expanded on every calendar query. NULL
+    # means either "not recurring" or "never ends".
+    recurrence_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     status: Mapped[str] = mapped_column(String(32), default="confirmed")
     origin: Mapped[str] = mapped_column(String(16), default="local")

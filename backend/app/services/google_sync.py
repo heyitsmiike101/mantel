@@ -10,6 +10,7 @@ from ..models import Calendar, Event, LinkedAccount
 from ..timeutil import utcnow_naive
 from .google_api import GoogleApiError, GoogleCalendarClient, SyncTokenExpired
 from .google_oauth import GoogleAuthError, access_token_for
+from .notify import calendar_changed
 
 log = logging.getLogger(__name__)
 
@@ -172,6 +173,15 @@ def pull_all(db: Session) -> int:
             db.rollback()
             cal.sync_error = str(exc)[:1000]
             db.commit()
+
+    if total:
+        # An event added on someone's phone in Google Calendar arrives here, not
+        # through the API, so this is the only place that can tell Home Assistant
+        # about it. Without this -- and with HA's own polling switched off, as the
+        # setup guide instructs -- Google-originated changes would never show up
+        # in Home Assistant at all.
+        calendar_changed(db)
+
     return total
 
 

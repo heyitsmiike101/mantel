@@ -14,6 +14,7 @@ displayed. See `google_sync._push_one`.
 from datetime import datetime, timedelta
 
 from dateutil import rrule as rrule_lib
+from sqlalchemy.orm.attributes import set_committed_value
 
 from ..models import Event
 
@@ -79,6 +80,33 @@ def validate(rule: str) -> str:
     return text
 
 
+def series_end(rule: str | None, dtstart: datetime, duration: timedelta) -> datetime | None:
+    """When a finite series stops, or None if it never does.
+
+    Stored on the row so `list_events` can skip finished series in SQL. Without
+    it every series ever created is loaded and re-expanded on every request, and
+    the cost grows with the age of the install rather than the size of the window.
+    """
+    if not rule:
+        return None
+    try:
+        parsed = rrule_lib.rrulestr(_naive_until(rule), dtstart=dtstart)
+    except (ValueError, TypeError):
+        return None
+
+    # An unbounded rule has neither; asking for its last occurrence would hang.
+    upper = rule.upper()
+    if "COUNT=" not in upper and "UNTIL=" not in upper:
+        return None
+
+    last = None
+    for count, occurrence in enumerate(parsed):
+        last = occurrence
+        if count >= MAX_OCCURRENCES:
+            return None  # pathologically long; treat as unbounded
+    return None if last is None else last + duration
+
+
 def occurrences(event: Event, window_start: datetime, window_end: datetime) -> list[datetime]:
     """Start times for `event` that fall inside the window.
 
@@ -115,6 +143,14 @@ def materialise(event: Event, window_start: datetime, window_end: datetime) -> l
 
     These are never added to the session -- they exist only to be serialised. The
     id is kept so the UI can open and edit the underlying series.
+
+    The calendar is attached with `set_committed_value` rather than a plain
+    assignment. `Event.calendar` has a back_populates to `Calendar.events`, whose
+    cascade includes save-update, so `instance.calendar = ...` would append these
+    transient duplicate-primary-key rows to the persistent collection -- and the
+    next flush would try to INSERT them. set_committed_value writes the attribute
+    as if it had been loaded from the database, firing no events and touching no
+    backref.
     """
     duration = event.end_at - event.start_at
     out: list[Event] = []
@@ -137,7 +173,7 @@ def materialise(event: Event, window_start: datetime, window_end: datetime) -> l
             origin=event.origin,
             sync_state=event.sync_state,
         )
-        instance.calendar = event.calendar
+        set_committed_value(instance, "calendar", event.calendar)
         out.append(instance)
 
     return out

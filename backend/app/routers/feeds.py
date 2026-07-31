@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from ..config import get_settings
 from ..db import get_db
 from ..models import Calendar, Event
-from ..services import ics, recurrence
+from ..services import ics
 from ..services.crypto import feed_token, valid_feed_token
 
 router = APIRouter(prefix="/feeds", tags=["feeds"])
@@ -22,6 +22,10 @@ def _events(db: Session, calendar_id: int | None) -> tuple[list[Event], str]:
             Event.status == "confirmed",
             Event.sync_state != "pending_delete",
             Event.start_at < end,
+            # Once a series has been handed to Google, Google's expanded instances
+            # are the record. Exporting the master's RRULE as well would make every
+            # subscriber render the whole series twice. Same guard as list_events.
+            Event.is_master.is_(False),
         )
         .options(selectinload(Event.calendar))
         .order_by(Event.start_at, Event.id)
@@ -112,8 +116,3 @@ def _feed_response(db: Session, calendar_id: int | None, token: str) -> PlainTex
             "Cache-Control": "no-cache",
         },
     )
-
-
-# Re-exported so the events router can nudge subscribers without importing the
-# service module directly.
-__all__ = ["router", "recurrence"]

@@ -39,8 +39,12 @@ export function SharingTab() {
     }
   }
 
-  const base = feed.all_calendars_url.split('/api/feeds/')[0]
-  const feedUrl = (path: string) => `${base}/api/feeds/${path}?token=${feed.token}`
+  // Built from the address this browser actually reached the app on, not from
+  // PUBLIC_BASE_URL. That setting exists for the Google OAuth redirect and
+  // defaults to localhost, so a household that never configured Google would
+  // otherwise be handed a link that resolves to the phone itself.
+  const feedUrl = (path: string) =>
+    `${window.location.origin}/api/feeds/${path}?token=${feed.token}`
 
   const testHa = async () => {
     setTesting(true)
