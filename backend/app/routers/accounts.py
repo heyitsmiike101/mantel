@@ -6,10 +6,9 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
 from ..db import get_db
 from ..models import LinkedAccount, User
-from ..services import google_oauth, google_sync
+from ..services import google_config, google_oauth, google_sync
 from ..services.crypto import read_state, sign_state
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -54,16 +53,16 @@ def google_auth_url(
     user_id: int = Query(description="Which family member this Google account belongs to."),
     db: Session = Depends(get_db),
 ) -> AuthUrlOut:
-    settings = get_settings()
-    if not settings.google_configured:
+    cfg = google_config.load(db)
+    if not cfg.configured:
         raise HTTPException(
             400,
-            "Google is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET -- "
-            "see docs/setup-google-oauth.md.",
+            "Google isn't set up yet. Add your Client ID and Client secret under "
+            "Settings -> Google; the page walks you through creating them.",
         )
     if db.get(User, user_id) is None:
         raise HTTPException(404, "User not found")
-    return AuthUrlOut(url=google_oauth.build_auth_url(sign_state({"user_id": user_id})))
+    return AuthUrlOut(url=google_oauth.build_auth_url(cfg, sign_state({"user_id": user_id})))
 
 
 @router.get(
@@ -78,7 +77,7 @@ def google_callback(
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     if error:
-        return RedirectResponse(f"/settings?tab=accounts&error={error}")
+        return RedirectResponse(f"/settings?tab=google&error={error}")
 
     payload = read_state(state)
     if payload is None:
@@ -89,7 +88,7 @@ def google_callback(
     if not code:
         raise HTTPException(400, "Google did not return an authorization code")
 
-    tokens = google_oauth.exchange_code(code)
+    tokens = google_oauth.exchange_code(google_config.load(db), code)
     email = google_oauth.fetch_email(tokens["access_token"])
 
     account = db.scalar(
@@ -106,7 +105,7 @@ def google_callback(
     db.commit()
 
     google_sync.discover_calendars(db, account)
-    return RedirectResponse(f"/settings?tab=accounts&linked={email}")
+    return RedirectResponse(f"/settings?tab=google&linked={email}")
 
 
 @router.delete(

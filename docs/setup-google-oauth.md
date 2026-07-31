@@ -9,6 +9,11 @@ app and signs in with their own Google account.
 
 **Time needed:** about 10 minutes.
 
+> **You can do all of this inside the app.** Open **Settings → Google** and expand *How to get a
+> Client ID and secret from Google* — it has these same steps, with clickable links, the exact
+> redirect URI for your installation ready to copy, and boxes to paste the credentials into.
+> This page is the same walkthrough in longer form, if you would rather read it first.
+
 ---
 
 ## Step 1 — Create a Google Cloud project
@@ -77,58 +82,45 @@ haven't paid for a formal review.
 6. Click **Create**. Google shows your **Client ID** and **Client secret** — keep this dialog
    open for the next step.
 
-## Step 5 — Put the credentials in your `.env`
+## Step 5 — Paste the credentials into the app
 
-In the folder where you cloned Family Calendar:
+Open **Settings → Google** in Family Calendar. No file editing, and no restart.
 
-```bash
-cp .env.example .env
-```
+1. **This app's address** — how your family reaches the app, e.g. `http://192.168.1.50:8080`.
+   It must match what you registered in Step 4. The page shows the resulting **Redirect URI**
+   right underneath, with a copy button, so you can check the two agree.
+2. **Client ID** and **Client secret** — paste both from the Google dialog.
 
-Then edit `.env` and set:
+They save as you leave each box. The secret is encrypted with your `SECRET_KEY` and is never
+readable back out of the app.
 
-```
-PUBLIC_BASE_URL=http://192.168.1.50:8080
-GOOGLE_CLIENT_ID=1234567890-abcdefg.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-your-secret-here
-```
+> If you haven't set a real `SECRET_KEY` in `.env` yet, do it now, before connecting anyone —
+> it's the key your Google credentials and everyone's tokens are encrypted with. See
+> [configuration.md](configuration.md).
 
-`PUBLIC_BASE_URL` must be the same address you registered in Step 5 — this is what the app
-tells Google to redirect back to.
+## Step 6 — Each person connects their email
 
-While you're here, set a real `SECRET_KEY`. It encrypts the stored Google tokens:
+Still on **Settings → Google**, under **Connect an email**, every family member gets a row:
 
-```bash
-docker run --rm python:3.12-slim sh -c "pip -q install cryptography && python -c 'from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())'"
-```
+1. Press **Connect an email** next to your name and sign in with your Google account.
+2. Google warns that the app isn't verified — that's expected for something you host yourself.
+   Choose **Advanced** → **Go to Family Calendar**.
+3. You land back in the app with your calendars discovered.
 
-Paste the output as `SECRET_KEY`.
-
-## Step 6 — Restart and connect
-
-```bash
-./run.sh
-```
-
-Then in the app:
-
-1. Go to **Settings → Google**.
-2. Pick which family member the account belongs to.
-3. Click **Connect a Google account** and sign in.
-4. Back in the app, go to the calendar list, choose who owns each calendar, and switch **Syncing**
-   on for the ones you want on the wall.
-
-Repeat for each family member and each of their Google accounts. One person can link as many
-accounts as they want (personal Gmail plus a work Workspace account, for example).
+Anyone can connect **as many accounts as they like** — press **Add another** for a work
+Workspace account alongside a personal Gmail. Each connected email's calendars appear in the
+**Calendars** section below, where you choose who each one belongs to and switch **Syncing** on
+for the ones you want on the wall.
 
 ---
 
 ## Troubleshooting
 
 **`redirect_uri_mismatch`**
-The URI in Google Cloud doesn't exactly match `PUBLIC_BASE_URL` + `/api/accounts/google/callback`.
-Check for a missing port, `https` vs `http`, or a trailing slash. Changes in Google Cloud can
-take a few minutes to take effect.
+The URI in Google Cloud doesn't exactly match the **Redirect URI** shown in Settings → Google.
+Copy it from there with the copy button and compare character by character — a missing port,
+`https` vs `http`, or a trailing slash are the usual culprits. Changes in Google Cloud can take
+a few minutes to take effect.
 
 **"Google hasn't verified this app"**
 Expected for a self-hosted app. Click **Advanced → Go to Family Calendar (unsafe)**.

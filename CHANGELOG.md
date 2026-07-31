@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.2.2
+
+**The family is on the calendar page.** Everyone appears as a chip along the top, filled with
+their own colour, so the row doubles as the legend for the grid below. Tap somebody to grey them
+out and their events disappear; tap again to bring them back. The choice is remembered per
+device, so the kitchen display and your phone can show different things, and somebody added to
+the family later shows up straight away rather than arriving hidden. Events on a calendar nobody
+has claimed always stay visible — they belong to the household.
+
+**Google is configured in the app now, not in a file.** Settings → Google walks you through
+creating the credentials in Google Cloud, with clickable links, the exact redirect URI for your
+installation ready to copy, and boxes to paste the Client ID and secret into. It takes effect
+immediately — no editing `.env`, no restarting the container. Each family member then presses
+**Connect an email** on their own row, and can add as many accounts as they like.
+
+The client secret is encrypted at rest and is never readable back through the API; the same is
+now true of the Home Assistant token.
+
+**`.env` is down to two things**: the port, and a `SECRET_KEY` to encrypt everything with. An
+existing installation's Google credentials are copied out of `.env` into the app on first start,
+so upgrades keep working and Settings shows the truth from then on.
+
 ## 0.2.1
 
 Fixes from a code review of the 0.2.0 release.

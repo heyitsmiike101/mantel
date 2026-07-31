@@ -1,10 +1,16 @@
 # Configuration reference
 
-Two places hold configuration:
+**Nearly everything is configured in the app, under Settings.** Google Calendar, weather, the
+screensaver, sharing links and Home Assistant all live there, each with instructions on the
+page, and they take effect immediately — no file to edit, no container to restart.
 
-1. **`.env`** — server settings. Read at startup; change them and restart with `./run.sh`.
-2. **Settings screen** — display preferences shared by every screen, stored in the database and
-   applied immediately. Also available at `GET/PATCH /api/settings`.
+`.env` holds only what must exist before the app can start:
+
+- **`SECRET_KEY`** — encrypts your Google client secret and everyone's OAuth tokens, so it has
+  to be available before anything can be read out of the database.
+- **`PORT`** and a few operational knobs (database URL, sync intervals, CORS).
+
+Both are covered below. Everything else in this document is a Settings screen.
 
 ---
 
@@ -15,13 +21,14 @@ Two places hold configuration:
 Default `8080`. The port on the host machine. Change it if something else already uses 8080.
 If you change it, update `PUBLIC_BASE_URL` and your Google redirect URI to match.
 
-### `PUBLIC_BASE_URL`
+### `PUBLIC_BASE_URL` *(legacy — set it in Settings → Google instead)*
 
-Default `http://localhost:8080`. The address family members actually type into a browser.
-Used to build the Google OAuth redirect, so it **must exactly match** the redirect URI you
-registered in Google Cloud — same scheme, host, and port.
+The address family members type into a browser, used to build the Google OAuth redirect. It now
+lives in **Settings → Google**, which also shows you the exact redirect URI to give Google and
+defaults to whatever address you are currently browsing on.
 
-Examples: `http://localhost:8080`, `http://192.168.1.50:8080`, `http://calendar.local:8080`
+A value here is read once on first start and copied into the app's settings, so an installation
+that predates the Settings screen keeps working. After that the Settings value wins.
 
 ### `SECRET_KEY`
 
@@ -36,11 +43,15 @@ Any string works (it gets hashed into a key if it isn't already a Fernet key), b
 one is best. Changing it invalidates stored Google tokens — accounts show "Needs reconnecting"
 and each person reconnects once. No calendar data is lost.
 
-### `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`
+### `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` *(legacy — set them in Settings → Google)*
 
-Empty by default, which simply means Google sync is turned off and the app runs as a local
-calendar. Fill them in from your Google Cloud OAuth client — see
-[setup-google-oauth.md](setup-google-oauth.md).
+Configure Google in **Settings → Google**. That page walks you through creating the credentials,
+shows the redirect URI to paste into Google Cloud, and lets each person connect their own email.
+The client secret is encrypted at rest with `SECRET_KEY` and is never readable back through the
+API.
+
+Values here are seeded into the database once on first start, for installations that predate the
+Settings screen. Leave them empty on a new install.
 
 ### `SYNC_INTERVAL_SECONDS`
 

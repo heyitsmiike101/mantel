@@ -3,10 +3,10 @@ from datetime import timedelta
 import httpx
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
 from ..models import LinkedAccount
 from ..timeutil import utcnow_naive
 from .crypto import decrypt, encrypt
+from .google_config import GoogleConfig, load
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -23,11 +23,10 @@ class GoogleAuthError(Exception):
     """Raised when Google refuses the stored credentials and the user must re-link."""
 
 
-def build_auth_url(state: str) -> str:
-    s = get_settings()
+def build_auth_url(cfg: GoogleConfig, state: str) -> str:
     params = {
-        "client_id": s.google_client_id,
-        "redirect_uri": s.google_redirect_uri,
+        "client_id": cfg.client_id,
+        "redirect_uri": cfg.redirect_uri,
         "response_type": "code",
         "scope": " ".join(SCOPES),
         # offline + consent guarantees a refresh token even on a repeat authorization,
@@ -40,15 +39,14 @@ def build_auth_url(state: str) -> str:
     return str(httpx.URL(AUTH_URL, params=params))
 
 
-def exchange_code(code: str) -> dict:
-    s = get_settings()
+def exchange_code(cfg: GoogleConfig, code: str) -> dict:
     resp = httpx.post(
         TOKEN_URL,
         data={
             "code": code,
-            "client_id": s.google_client_id,
-            "client_secret": s.google_client_secret,
-            "redirect_uri": s.google_redirect_uri,
+            "client_id": cfg.client_id,
+            "client_secret": cfg.client_secret,
+            "redirect_uri": cfg.redirect_uri,
             "grant_type": "authorization_code",
         },
         timeout=30,
@@ -89,7 +87,7 @@ def access_token_for(db: Session, account: LinkedAccount) -> str:
 
 
 def refresh_access_token(db: Session, account: LinkedAccount) -> str:
-    s = get_settings()
+    cfg = load(db)
     refresh_token = decrypt(account.refresh_token_enc)
     if not refresh_token:
         _mark_needs_reauth(db, account, "No refresh token stored")
@@ -99,8 +97,8 @@ def refresh_access_token(db: Session, account: LinkedAccount) -> str:
         TOKEN_URL,
         data={
             "refresh_token": refresh_token,
-            "client_id": s.google_client_id,
-            "client_secret": s.google_client_secret,
+            "client_id": cfg.client_id,
+            "client_secret": cfg.client_secret,
             "grant_type": "refresh_token",
         },
         timeout=30,

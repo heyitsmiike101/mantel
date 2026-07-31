@@ -18,7 +18,7 @@ export function CalendarPage() {
   const { view } = useParams()
   const { data: settings } = useSettings()
   const { data: users = [] } = useUsers()
-  const { userIds, toggle, clear, showingEveryone } = usePersonFilter()
+  const { toggle, showEveryone, isVisible, anyHidden } = usePersonFilter()
   const [anchor, setAnchor] = useState(() => new Date())
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
   const [creatingAt, setCreatingAt] = useState<Date | null>(null)
@@ -27,7 +27,8 @@ export function CalendarPage() {
   const weekStartsOn = (settings?.first_day_of_week === 1 ? 1 : 0) as 0 | 1
   const kind = isViewKind(view) ? view : null
   const range = rangeFor(kind ?? 'week', anchor, weekStartsOn)
-  const { data: events = [], isLoading } = useEvents(range.start, range.end, userIds)
+  const { data: allEvents = [], isLoading } = useEvents(range.start, range.end)
+  const events = allEvents.filter((e) => isVisible(e.user_id))
   const swipe = useSwipe((dir) => setAnchor((a) => step(kind ?? 'week', a, dir)))
 
   if (!kind) return <Navigate to="/calendar/week" replace />
@@ -44,7 +45,7 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="calpage" data-filtered={users.length > 1 ? 'true' : undefined}>
+    <div className="calpage" data-filtered={users.length > 0 ? 'true' : undefined}>
       <header className="calpage__bar">
         <button className="iconbtn" onClick={() => setAnchor((a) => step(kind, a, -1))} aria-label="Previous">
           ‹
@@ -64,30 +65,30 @@ export function CalendarPage() {
         </button>
       </header>
 
-      {users.length > 1 && (
+      {users.length > 0 && (
         <div className="peoplefilter">
-          <button
-            className="chipbtn"
-            aria-current={showingEveryone ? 'page' : undefined}
-            onClick={clear}
-          >
-            Everyone
-          </button>
           {users.map((u) => {
-            const on = userIds.includes(u.id)
+            const shown = isVisible(u.id)
             return (
               <button
                 key={u.id}
-                className="chipbtn chipbtn--person"
-                aria-current={on ? 'page' : undefined}
-                style={on ? { background: u.color, borderColor: u.color, color: '#0b1220' } : { borderColor: u.color }}
+                className="personchip"
+                data-hidden={!shown}
+                aria-pressed={shown}
+                style={shown ? { background: u.color, borderColor: u.color } : undefined}
                 onClick={() => toggle(u.id)}
+                title={shown ? `Hide ${u.name}'s events` : `Show ${u.name}'s events`}
               >
-                <span className="chipbtn__dot" style={{ background: u.color }} />
+                {u.avatar_emoji && <span aria-hidden>{u.avatar_emoji}</span>}
                 {u.name}
               </button>
             )
           })}
+          {anyHidden && (
+            <button className="personchip personchip--all" onClick={showEveryone}>
+              Show everyone
+            </button>
+          )}
         </div>
       )}
 

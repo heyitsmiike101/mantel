@@ -398,3 +398,80 @@ code {
   align-items: center;
   gap: 10px;
 }
+
+/* ------------------------- setup steps & copy boxes ------------------------ */
+
+.settings__h3 {
+  margin: 24px 0 4px;
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.steps {
+  margin-bottom: 12px;
+}
+
+.steps__toggle {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.steps__list {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  line-height: 1.65;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.steps__list li {
+  margin-bottom: 12px;
+}
+
+.steps__list a {
+  color: var(--accent);
+}
+
+.steps__note {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-elev);
+  border-radius: 0 8px 8px 0;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.copybox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.copybox code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: var(--font-xs);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.banner {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+}

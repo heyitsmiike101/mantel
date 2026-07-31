@@ -41,14 +41,18 @@ To reach it from other devices, use the machine's LAN address, e.g. `http://192.
 
 ## Adding Google Calendar
 
-Optional, and worth it if your family already lives in Google Calendar. It takes about ten
-minutes and you only do it once for the whole household:
+Optional, and worth it if your family already lives in Google Calendar. Open
+**Settings → Google** — the page walks you through creating the credentials in Google Cloud,
+shows you the exact redirect URI to paste in, and takes about ten minutes. You do it once for
+the whole household.
 
-**→ [docs/setup-google-oauth.md](docs/setup-google-oauth.md)**
+Then each person presses **Connect an email** and signs in with their own account. Anyone can
+connect several — a personal Gmail and a work account both work. Events created on the wall
+display appear in Google within seconds, and changes made in Google appear on the wall on the
+next sync.
 
-After that, each family member clicks **Connect a Google account** in Settings and signs in
-with their own account. Events created on the wall display appear in Google within seconds, and
-changes made in Google appear on the wall on the next sync.
+Nothing about Google goes in a config file. A longer written version of the same walkthrough is
+in [docs/setup-google-oauth.md](docs/setup-google-oauth.md) if you prefer to read ahead.
 
 ## Setting up a wall display
 
@@ -101,20 +105,19 @@ migration step.
 
 ## Configuration
 
-Everything is set in `.env`. Every option is documented in
-**[docs/configuration.md](docs/configuration.md)**, and `.env.example` explains each one inline.
-The short version:
+**Almost everything is configured in the app, under Settings**, with instructions on the page —
+Google Calendar, weather, the screensaver, sharing links, Home Assistant. You don't edit files
+and restart containers to finish setting this up.
 
-| Variable                | Default                     | What it does                                        |
-| ----------------------- | --------------------------- | --------------------------------------------------- |
-| `PORT`                  | `8080`                      | Port the app is served on                           |
-| `PUBLIC_BASE_URL`       | `http://localhost:8080`     | How family members reach the app; must match Google |
-| `SECRET_KEY`            | *(insecure default)*        | Encrypts stored Google tokens — set your own        |
-| `GOOGLE_CLIENT_ID`      | empty                       | From your Google Cloud OAuth client                 |
-| `GOOGLE_CLIENT_SECRET`  | empty                       | From your Google Cloud OAuth client                 |
-| `SYNC_INTERVAL_SECONDS` | `300`                       | How often to pull changes from Google               |
-| `SYNC_PAST_DAYS`        | `90`                        | How far back to import on the first sync            |
-| `DATABASE_URL`          | `sqlite:////data/family.db` | Where data lives                                    |
+`.env` holds only what has to exist before the app starts:
+
+| Variable     | Default              | What it does                                            |
+| ------------ | -------------------- | ------------------------------------------------------- |
+| `PORT`       | `8080`               | Port the app is served on                               |
+| `SECRET_KEY` | *(insecure default)* | Encrypts your Google credentials and tokens — set yours |
+
+Optional tuning (sync intervals, database URL, CORS) is also there with sensible defaults, and
+every option is documented in **[docs/configuration.md](docs/configuration.md)**.
 
 ## The API
 

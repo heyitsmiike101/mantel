@@ -206,5 +206,11 @@ The `/api/feeds/*.ics` endpoints are the only ones that require a credential —
 `GET /api/feeds/token` — because a feed URL is the one thing likely to be pasted into a service
 outside the house. Everything else is open on the LAN.
 
+`GET/PATCH /api/settings` is where Google, weather, screensaver and Home Assistant
+configuration lives — there is no config file to edit. Secrets (`google_client_secret`,
+`ha_token`) are write-only: PATCH accepts them, GET always returns `""` and reports only
+whether one is set under `server.google_client_secret_set` / `server.ha_token_set`. Sending an
+empty string leaves a stored secret unchanged.
+
 `GET /api/version` is also how screens detect a new deployment — they poll it and hard-reload
 when the version changes.

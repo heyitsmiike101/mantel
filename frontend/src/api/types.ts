@@ -149,9 +149,15 @@ export interface AppSettings {
   ha_base_url: string
   ha_token: string
   ha_entity_id: string
+  google_client_id: string
+  google_client_secret: string
+  public_base_url: string
   server: {
     version: string
     google_configured: boolean
+    google_client_secret_set: boolean
+    ha_token_set: boolean
+    google_redirect_uri: string
     sync_enabled: boolean
     sync_interval_seconds: number
   }
