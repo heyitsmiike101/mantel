@@ -103,14 +103,18 @@ function ListCard({ list }: { list: SharedList }) {
           {list.icon} {list.name}
         </h2>
         <span className="listcard__count">{list.item_count} left</span>
-        {checkedCount > 0 && (
-          <button className="iconbtn" onClick={() => clearChecked.mutate(undefined as never)}>
-            Clear {checkedCount}
+        {/* Grouped so a narrow card wraps the buttons together, under a title that
+            stays readable, instead of squeezing the name down to an ellipsis. */}
+        <div className="listcard__actions">
+          {checkedCount > 0 && (
+            <button className="iconbtn" onClick={() => clearChecked.mutate(undefined as never)}>
+              Clear {checkedCount}
+            </button>
+          )}
+          <button className="iconbtn iconbtn--danger" onClick={() => removeList.mutate(undefined as never)}>
+            Delete
           </button>
-        )}
-        <button className="iconbtn iconbtn--danger" onClick={() => removeList.mutate(undefined as never)}>
-          Delete
-        </button>
+        </div>
       </div>
 
       <ul className="listcard__items">

@@ -268,12 +268,34 @@ code {
 }
 
 .listcard__head h2 {
-  flex: 1;
+  /* The buttons take their natural width, so the title was the only thing that
+     gave -- "Groceries" collapsed to "Groce..." with the card half empty. The
+     floor below keeps ordinary names intact; when they no longer fit alongside
+     the buttons the head wraps instead, and the ellipsis is left for the
+     genuinely long names. In ch so it tracks --scale on a wall display. */
+  flex: 1 1 auto;
+  min-width: 14ch;
   margin: 0;
   font-size: var(--font-md);
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listcard__count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.listcard__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.listcard__actions .iconbtn {
   white-space: nowrap;
 }
 
