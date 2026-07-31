@@ -67,7 +67,11 @@ jobs:
 
       - name: Read VERSION
         id: version
-        run: echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "value=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+          # github.event.repository.pushed_at is a bare epoch on a tag push, and
+          # /api/version documents build_time as ISO-8601. Stamp it ourselves.
+          echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
@@ -78,6 +82,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ steps.version.outputs.value }}
-            BUILD_TIME=${{ github.event.repository.pushed_at }}
+            BUILD_TIME=${{ steps.version.outputs.built }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
