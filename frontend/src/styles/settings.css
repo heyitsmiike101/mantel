@@ -268,13 +268,24 @@ code {
 }
 
 .listcard__head h2 {
-  flex: 1;
+  /* `flex: 1` would give this a zero basis, so the Clear/Delete buttons squeezed
+     even a short name like "Groceries" down to an ellipsis. An auto basis makes
+     the row wrap the buttons onto a second line first, and the name only
+     truncates when it is genuinely long. */
+  flex: 1 1 auto;
   margin: 0;
   font-size: var(--font-md);
-  min-width: 0;
+  min-width: 6ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.listcard__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .listcard__count {

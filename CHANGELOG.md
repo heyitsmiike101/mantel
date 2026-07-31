@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.5
+
+Two display fixes, both spotted while capturing the README screenshots.
+
+- **Short events no longer print their title over their time.** A 15-minute block is
+  shorter than two lines of text, and the two lines were shrinking below their own
+  line boxes and painting on top of each other. Blocks that short now put the time in
+  front of the title on one line, and any block that still runs out of room clips
+  cleanly instead of overlapping.
+- **List names are no longer truncated for no reason.** "Groceries" was rendering as
+  "Groce…" with half the card empty, because the Clear and Delete buttons were
+  squeezing the title rather than wrapping below it.
+
 ## 0.2.4
 
 **Publishing the Google app is now its own step, and you can't miss it.** It was a footnote

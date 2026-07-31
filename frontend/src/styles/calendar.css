@@ -194,6 +194,26 @@
   opacity: 0.75;
 }
 
+/* A 15-minute block is shorter than two lines of text. Without this the two
+   spans shrink below their own line boxes and the text paints on top of itself;
+   with it the block simply clips, so the title stays readable at any text size. */
+.event-block__title,
+.event-block__time {
+  flex: 0 0 auto;
+}
+
+/* Short enough that only one line fits: put the time in front of the title
+   instead of below it, so a quick event still says when it is. */
+.event-block[data-compact='true'] {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.event-block[data-compact='true'] .event-block__time {
+  order: -1;
+}
+
 .nowline {
   position: absolute;
   left: 0;

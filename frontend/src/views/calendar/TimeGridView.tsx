@@ -14,6 +14,11 @@ interface Props {
   onSelectSlot: (start: Date) => void
 }
 
+/** Below this height an event block cannot show a title and a time on separate lines.
+ *  Sized for the largest text scale ("wall"), so the switch happens a little early on
+ *  the smaller ones rather than too late on the display that matters most. */
+const TWO_LINES_PX = 40
+
 /** One component drives Today (1 column), 3-Day (3) and Week (7) -- they differ only in
  *  how many day columns they render. */
 export function TimeGridView({
@@ -95,6 +100,9 @@ export function TimeGridView({
                 <button
                   key={event.id}
                   className="event-block"
+                  // A block this short cannot fit a title above a time; the CSS
+                  // lays those out on one line instead.
+                  data-compact={height < TWO_LINES_PX}
                   style={{
                     top: top - dayStartHour * hourHeight,
                     height,
