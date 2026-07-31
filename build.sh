@@ -3,7 +3,7 @@
 # a NAS, and a Raspberry Pi from the same tag.
 #
 #   ./build.sh                      build both architectures, keep them local
-#   ./build.sh --push ghcr.io/you/family-calendar
+#   ./build.sh --push ghcr.io/you/mantel
 #                                   build and push a multi-arch manifest
 #
 # Requires the buildx plugin and, on an x86 host, QEMU for the arm64 leg:
@@ -17,7 +17,7 @@ PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 BUILDER="${BUILDER:-famcal}"
 
 PUSH=0
-IMAGE="family-calendar"
+IMAGE="mantel"
 if [ "${1:-}" = "--push" ]; then
   PUSH=1
   IMAGE="${2:?usage: ./build.sh --push <registry/image>}"

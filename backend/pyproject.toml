@@ -1,5 +1,5 @@
 [project]
-name = "family-calendar"
+name = "mantel"
 version = "0.1.0"
 description = "Self-hosted open-source family calendar with Google Calendar 2-way sync"
 requires-python = ">=3.11"

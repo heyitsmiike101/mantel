@@ -181,7 +181,7 @@ Also stored, currently only settable through the API (`PATCH /api/settings`):
 
 | What                | Where                                                  |
 | ------------------- | ------------------------------------------------------ |
-| Database            | `family-calendar-data` Docker volume, `/data/family.db` |
+| Database            | `mantel-data` Docker volume, `/data/family.db` |
 | Screensaver photos  | The same volume, `/data/photos/`                        |
 | Google tokens       | Encrypted inside that database                         |
 | Version             | The `VERSION` file at the repo root                    |

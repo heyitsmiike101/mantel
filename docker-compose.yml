@@ -5,13 +5,13 @@ services:
       args:
         APP_VERSION: ${APP_VERSION:-dev}
         BUILD_TIME: ${BUILD_TIME:-}
-    image: family-calendar:${APP_VERSION:-dev}
-    container_name: family-calendar
+    image: mantel:${APP_VERSION:-dev}
+    container_name: mantel
     restart: unless-stopped
     ports:
       - '${PORT:-8080}:8080'
     volumes:
-      - family-calendar-data:/data
+      - mantel-data:/data
     env_file:
       - path: .env
         required: false
@@ -20,4 +20,4 @@ services:
       BUILD_TIME: ${BUILD_TIME:-}
 
 volumes:
-  family-calendar-data:
+  mantel-data:
