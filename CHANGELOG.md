@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.7
+
+- **A typo in an event filter no longer reads as a broken server.**
+  `GET /api/events?calendar_ids=abc` answered 500; it now answers 400 naming the
+  field. `user_ids` had the same fault. This matters most for the integration path
+  the AI guide documents: 500 is the one status a client treats as "retry later"
+  rather than "fix your request", so a typo could turn into a retry loop against a
+  perfectly healthy calendar. Trailing and repeated commas still work — `,1,,` is
+  sloppy, not wrong. Found by a tool building a wall-display widget against the API.
+- Released images now report `build_time` as ISO-8601 instead of a bare epoch.
+
 ## 0.2.6
 
 - **Prebuilt images actually get a `latest` tag.** The release workflow only runs on a
