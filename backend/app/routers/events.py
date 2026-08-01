@@ -27,6 +27,25 @@ def _load(db: Session, event_id: int) -> Event:
     return ev
 
 
+def _id_list(raw: str, field: str) -> list[int]:
+    """Parse a comma-separated id filter, or 400 if it isn't one.
+
+    Without this, a non-numeric value reaches `int()` and raises ValueError,
+    which FastAPI turns into a 500 — reporting a caller's typo as a server
+    fault. Every other bad input on this endpoint answers 400.
+    """
+    out: list[int] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            out.append(int(part))
+        except ValueError:
+            raise HTTPException(400, f"`{field}` must be comma-separated integers") from None
+    return out
+
+
 def _writable_calendar(db: Session, calendar_id: int) -> Calendar:
     cal = db.get(Calendar, calendar_id)
     if cal is None:
@@ -107,11 +126,9 @@ def list_events(
     ).order_by(Event.start_at, Event.id)
 
     if calendar_ids:
-        ids = [int(i) for i in calendar_ids.split(",") if i.strip()]
-        stmt = stmt.where(Event.calendar_id.in_(ids))
+        stmt = stmt.where(Event.calendar_id.in_(_id_list(calendar_ids, "calendar_ids")))
     if user_ids:
-        uids = [int(i) for i in user_ids.split(",") if i.strip()]
-        stmt = stmt.where(Calendar.claimed_by_user_id.in_(uids))
+        stmt = stmt.where(Calendar.claimed_by_user_id.in_(_id_list(user_ids, "user_ids")))
     elif not include_unclaimed:
         stmt = stmt.where(
             or_(Calendar.claimed_by_user_id.is_not(None), Calendar.linked_account_id.is_(None))
