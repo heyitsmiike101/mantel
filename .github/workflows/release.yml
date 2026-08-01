@@ -1,8 +1,14 @@
 name: Release
 
+# Tests run on every push and every pull request -- a tag-only trigger meant a
+# contributor's PR could be merged without CI ever having looked at it. The
+# image job below is still gated on a v* tag, so ordinary pushes only test.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -35,6 +41,9 @@ jobs:
 
   image:
     needs: test
+    # Only a release tag publishes. Pushes to main and pull requests stop at the
+    # test job above.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
