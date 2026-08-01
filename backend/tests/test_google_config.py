@@ -188,3 +188,41 @@ def test_seeding_never_overwrites_what_was_typed_in_settings(client, db, monkeyp
     google_config.seed_from_env(db)
 
     assert google_config.load(db).client_id == "1234-abc.apps.googleusercontent.com"
+
+
+def test_callback_refuses_a_token_without_calendar_access(client, monkeypatch):
+    """Google grants what it can and drops the rest.
+
+    A token with only `email` looks valid, links fine, and then 403s on every
+    sync. The old code stored the account and let the 403 escape as a 500.
+    """
+    from app.services import google_oauth
+
+    assert google_oauth.missing_calendar_scope(
+        {"scope": "email https://www.googleapis.com/auth/userinfo.email openid"}
+    )
+    assert not google_oauth.missing_calendar_scope(
+        {"scope": "https://www.googleapis.com/auth/calendar openid"}
+    )
+    # An unexpected shape must not block a working account.
+    assert not google_oauth.missing_calendar_scope({})
+
+
+def test_missing_calendar_scope_is_not_fooled_by_a_prefix():
+    """`.../auth/calendar.readonly` is not `.../auth/calendar`, and a substring
+    check would have accepted it."""
+    from app.services import google_oauth
+
+    assert google_oauth.missing_calendar_scope(
+        {"scope": "https://www.googleapis.com/auth/calendar.readonly"}
+    )
+
+
+def test_sync_status_reports_google_configured_from_the_database(client):
+    """Credentials moved out of .env in 0.2.2, and this endpoint kept reading the
+    environment -- so it said "not configured" on every install that used Settings."""
+    assert client.get("/api/sync/status").json()["google_configured"] is False
+
+    configure(client)
+
+    assert client.get("/api/sync/status").json()["google_configured"] is True

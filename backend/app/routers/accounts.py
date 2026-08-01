@@ -10,8 +10,13 @@ from ..db import get_db
 from ..models import LinkedAccount, User
 from ..services import google_config, google_oauth, google_sync
 from ..services.crypto import read_state, sign_state
+from ..services.google_api import GoogleApiError
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+# Codes handed to the UI in ?error=, which turns them into an explanation.
+ERROR_NO_CALENDAR_SCOPE = "no_calendar_scope"
+ERROR_DISCOVERY_FAILED = "calendar_list_failed"
 
 
 class AccountOut(BaseModel):
@@ -89,6 +94,13 @@ def google_callback(
         raise HTTPException(400, "Google did not return an authorization code")
 
     tokens = google_oauth.exchange_code(google_config.load(db), code)
+
+    # Google grants what it can and silently drops the rest. Linking an account
+    # whose token cannot read a calendar leaves a row that looks connected and
+    # fails on every sync, so refuse it here while we can still explain why.
+    if google_oauth.missing_calendar_scope(tokens):
+        return RedirectResponse(f"/settings?tab=google&error={ERROR_NO_CALENDAR_SCOPE}")
+
     email = google_oauth.fetch_email(tokens["access_token"])
 
     account = db.scalar(
@@ -104,7 +116,17 @@ def google_callback(
     google_oauth.store_tokens(account, tokens)
     db.commit()
 
-    google_sync.discover_calendars(db, account)
+    try:
+        google_sync.discover_calendars(db, account)
+    except GoogleApiError as exc:
+        # The account is linked and the token is stored; only the first calendar
+        # listing failed. Record why and send the person somewhere that explains
+        # it, rather than returning a 500 that reads like the app is broken.
+        account.status = "needs_reauth"
+        account.last_error = f"Could not list calendars: {exc}"[:500]
+        db.commit()
+        return RedirectResponse(f"/settings?tab=google&error={ERROR_DISCOVERY_FAILED}")
+
     return RedirectResponse(f"/settings?tab=google&linked={email}")
 
 

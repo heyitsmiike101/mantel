@@ -39,6 +39,29 @@ def build_auth_url(cfg: GoogleConfig, state: str) -> str:
     return str(httpx.URL(AUTH_URL, params=params))
 
 
+CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar"
+
+
+def missing_calendar_scope(tokens: dict) -> bool:
+    """Did Google hand back a token that cannot touch the calendar?
+
+    Asking for a scope is not the same as getting it. Google drops a scope it
+    cannot grant -- most often because the Calendar API is not enabled on the
+    project, or the scope is not configured under Data Access -- and returns a
+    perfectly valid token for the scopes that survived. The failure then surfaces
+    much later as a 403 from the first calendar call, which is a terrible place to
+    discover it. The token response tells us up front, so check there.
+
+    A response with no `scope` field at all is treated as fine: Google always
+    sends one, and guessing "broken" would turn an unexpected shape into a
+    refusal to link a working account.
+    """
+    granted = tokens.get("scope")
+    if not granted:
+        return False
+    return CALENDAR_SCOPE not in granted.split()
+
+
 def exchange_code(cfg: GoogleConfig, code: str) -> dict:
     resp = httpx.post(
         TOKEN_URL,

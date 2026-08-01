@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.2.12
+
+**`/api/sync/status` said Google wasn't configured even when it was.** Credentials moved
+out of `.env` and into the database in 0.2.2; this endpoint kept reading the environment,
+so it reported `google_configured: false` on every install that set Google up through the
+Settings page — which is all of them. The Settings page itself was always correct.
+
+## 0.2.11
+
+**Connecting a Google account no longer ends in a 500 when Google withholds calendar
+access.** Asking for a scope is not the same as getting one: if the Calendar API isn't
+enabled on the project, Google signs the person in, silently drops the calendar scope,
+and returns a perfectly valid token. The app stored that account, then crashed on the
+first calendar call with an unhandled 403.
+
+Now the token's granted scopes are checked before anything is saved, and the person is
+told what to fix — the Calendar API, or the scope under Data Access — in the app rather
+than in a stack trace. A calendar listing that fails for any other reason marks the
+account as needing attention instead of returning a server error.
+
+**The Settings page shows OAuth errors at all now.** The callback could only report
+failures through `?error=` on the redirect, and nothing read it, so every failed
+connection looked identical to a cancelled one.
+
 ## 0.2.10
 
 **Documented the setup that actually works on a home network.** The Google guide now has an

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..db import get_db
 from ..models import Calendar, Event, LinkedAccount
-from ..services import google_sync
+from ..services import google_config, google_sync
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
@@ -59,7 +59,10 @@ def sync_status(db: Session = Depends(get_db)) -> SyncStatusOut:
     )
 
     return SyncStatusOut(
-        google_configured=s.google_configured,
+        # Credentials live in the database, not the environment -- reading them off
+        # `settings` reported "not configured" on every install that set Google up
+        # through the Settings page, which is now all of them.
+        google_configured=google_config.load(db).configured,
         sync_enabled=s.sync_enabled,
         interval_seconds=s.sync_interval_seconds,
         accounts_needing_reauth=list(reauth),

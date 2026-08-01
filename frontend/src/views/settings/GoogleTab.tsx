@@ -45,7 +45,11 @@ export function GoogleTab() {
   })
 
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // The OAuth callback can only talk to us through the URL it redirects to, so
+  // anything that went wrong over at Google arrives as ?error=<code>.
+  const [error, setError] = useState<string | null>(() =>
+    describeCallbackError(new URLSearchParams(window.location.search).get('error')),
+  )
   // null means "nobody has clicked the toggle yet", so the walkthrough can be open
   // by default for someone who hasn't set Google up and closed for someone who has.
   const [showSteps, setShowSteps] = useState<boolean | null>(null)
@@ -334,6 +338,40 @@ export function GoogleTab() {
       )}
     </section>
   )
+}
+
+/** Turn a callback error code into something a person can act on.
+ *
+ *  `no_calendar_scope` is the one worth spelling out. Google hands back a valid
+ *  token with the calendar permission quietly removed when the project can't
+ *  grant it, so the sign-in looks like it worked and nothing syncs. The two
+ *  causes are both one checkbox in the console, and neither is guessable. */
+function describeCallbackError(code: string | null): string | null {
+  if (!code) return null
+  switch (code) {
+    case 'no_calendar_scope':
+      return (
+        'Google signed you in but did not grant calendar access, so there is nothing to ' +
+        'sync. Two things to check in the Google console: that the Google Calendar API is ' +
+        'enabled for the project (APIs & Services → Library), and that ' +
+        'https://www.googleapis.com/auth/calendar is listed under Google Auth Platform → ' +
+        'Data Access. Fix either one, then connect again.'
+      )
+    case 'calendar_list_failed':
+      return (
+        "Your account linked, but Google refused to list its calendars. That is usually the " +
+        'Google Calendar API not being enabled for the project. Enable it, then press ' +
+        'Sync now — there is no need to reconnect.'
+      )
+    case 'access_denied':
+      return (
+        'Google sign-in was cancelled. If you did not cancel it, the account may not be on ' +
+        "the test-user list while the app is still in Testing mode — publishing the app " +
+        '(step 4) is the usual fix.'
+      )
+    default:
+      return `Google returned an error: ${code}`
+  }
 }
 
 function Steps({
