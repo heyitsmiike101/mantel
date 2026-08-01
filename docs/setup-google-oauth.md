@@ -81,16 +81,27 @@ under **Test users** on that same Audience page, and accept that everyone reconn
 3. **Application type**: `Web application`.
 4. **Name**: `Family Calendar`.
 5. Under **Authorized redirect URIs**, click **Add URI** and enter your app's address followed
-   by `/api/accounts/google/callback`. It must match **exactly**, including the port:
+   by `/api/accounts/google/callback`. It must match **exactly**, including the port.
 
-   | How you reach the app          | Redirect URI to add                                        |
-   | ------------------------------ | ---------------------------------------------------------- |
-   | `http://localhost:8080`        | `http://localhost:8080/api/accounts/google/callback`        |
-   | `http://192.168.1.50:8080`     | `http://192.168.1.50:8080/api/accounts/google/callback`     |
-   | `http://calendar.local:8080`   | `http://calendar.local:8080/api/accounts/google/callback`   |
+   **Google will not accept most home-network addresses.** Its rules are:
 
-   Add more than one if people reach the app different ways. Google allows plain `http` for
-   `localhost`; for a LAN IP or hostname it is also accepted for this kind of app.
+   - plain `http://` only for `localhost` — everything else must be `https://`
+   - no IP addresses, loopback aside
+   - the hostname must end in a public domain such as `.com`
+
+   So a normal LAN address is refused, with *"Invalid Redirect: must end with a public
+   top-level domain"*:
+
+   | Address                        | Google's answer                                    |
+   | ------------------------------ | -------------------------------------------------- |
+   | `http://localhost:8080`        | ✅ accepted — loopback is the documented exemption |
+   | `https://calendar.example.com` | ✅ accepted                                        |
+   | `http://192.168.1.50:8080`     | ❌ rejected — IP address                           |
+   | `http://calendar.local:8080`   | ❌ rejected — `.local` isn't a public domain       |
+   | `http://my-server:8080`        | ❌ rejected — no public domain at all              |
+
+   See **[Connecting when your app is on a LAN address](#connecting-when-your-app-is-on-a-lan-address)**
+   below — it takes one extra command, and it is the situation almost every self-hoster is in.
 
 6. Click **Create**. Google shows your **Client ID** and **Client secret** — keep this dialog
    open for the next step.
@@ -127,7 +138,56 @@ for the ones you want on the wall.
 
 ---
 
+## Connecting when your app is on a LAN address
+
+If you reach the app at something like `http://my-server:8099` or `http://192.168.1.50:8080`,
+Google will not accept that as a redirect URI. You have two options.
+
+### Option 1 — connect over localhost (no infrastructure)
+
+**The redirect URI only matters while somebody is connecting an account.** Refreshing a token
+afterwards never uses it. So you can borrow `localhost` for the connect and go back to normal
+straight after.
+
+1. In Google Cloud, register the loopback URI with **your** port:
+   `http://localhost:8099/api/accounts/google/callback`
+2. In **Settings → Google**, set **This app's address** to `http://localhost:8099`.
+3. Reach the app on loopback. Either open a browser on the machine running the container, or
+   forward the port from your own computer:
+
+   ```bash
+   ssh -L 8099:localhost:8099 my-server
+   ```
+
+4. With the tunnel open, go to <http://localhost:8099/settings?tab=google> and press
+   **Connect an email**. Sign in; you land back in the app with the calendars discovered.
+5. Repeat step 4 for each family member. You can close the tunnel afterwards.
+
+Everyday use at `http://my-server:8099` is unaffected throughout, and syncing keeps working
+once the tunnel is gone. You only need the tunnel again if somebody reconnects.
+
+### Option 2 — give it a real HTTPS address (permanent)
+
+Put the app behind a name Google accepts and this problem disappears for good:
+
+- **[Tailscale](https://tailscale.com/kb/1312/serve)** — `tailscale serve` gives you
+  `https://my-server.tailnet-name.ts.net` with a valid certificate, no ports opened to the
+  internet, and `.ts.net` is a public domain. This is the least work by a distance.
+- **A reverse proxy** — Caddy or Traefik with a domain you own and a Let's Encrypt
+  certificate, optionally on a DNS name that only resolves inside your network.
+
+Then set **This app's address** to that URL and register it in Google normally. Do not expose
+the app itself to the internet — it has no authentication. A Tailscale-only address stays
+private to your devices.
+
+---
+
 ## Troubleshooting
+
+**"Invalid Redirect: must end with a public top-level domain"**
+Google is refusing the address, not your typing. It won't take a LAN IP, a `.local` name, or a
+bare machine name. See [Connecting when your app is on a LAN
+address](#connecting-when-your-app-is-on-a-lan-address).
 
 **`redirect_uri_mismatch`**
 The URI in Google Cloud doesn't exactly match the **Redirect URI** shown in Settings → Google.

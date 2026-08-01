@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { api } from '../../api/client'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo } from '../../api/types'
+import { googleRedirectProblem, localhostAlternative, tunnelCommand } from './googleRedirect'
 
 interface LinkedAccount {
   id: number
@@ -71,6 +72,10 @@ export function GoogleTab() {
   // answer, and it is the value Google must be told about verbatim.
   const baseUrl = settings.public_base_url || window.location.origin
   const redirectUri = `${baseUrl.replace(/\/$/, '')}/api/accounts/google/callback`
+  // Google refuses most of what a LAN install looks like. Say so here rather than
+  // letting the console say "Invalid Redirect" after they've followed the steps.
+  const redirectProblem = googleRedirectProblem(baseUrl)
+  const tunnel = tunnelCommand(baseUrl)
 
   const connect = async (userId: number) => {
     setError(null)
@@ -116,6 +121,7 @@ export function GoogleTab() {
         open={stepsOpen}
         onToggle={() => setShowSteps(!stepsOpen)}
         redirectUri={redirectUri}
+        baseUrl={baseUrl}
       />
 
       <h3 className="settings__h3">Your Google credentials</h3>
@@ -144,6 +150,23 @@ export function GoogleTab() {
         </div>
         <CopyBox value={redirectUri} />
       </div>
+
+      {redirectProblem && (
+        <p className="banner banner--warn">
+          <strong>Google will refuse this redirect URI.</strong> {redirectProblem}
+          <br />
+          <br />
+          The redirect only matters while somebody is connecting an account, so the usual fix
+          costs nothing: register{' '}
+          <code>{localhostAlternative(baseUrl)}/api/accounts/google/callback</code> in Google,
+          put <code>{localhostAlternative(baseUrl)}</code> in the box above, and do the connect
+          step from a browser on the machine running this app — or through an SSH tunnel:
+          {tunnel && <CopyBox value={tunnel} />}
+          Then open <code>{localhostAlternative(baseUrl)}/settings?tab=google</code> and press
+          Connect. Everyday use at <code>{baseUrl}</code> is unaffected, and syncing keeps
+          working afterwards — refreshing a token doesn't use the redirect URI.
+        </p>
+      )}
 
       <div className="row">
         <div className="row__name row__name--static">Client ID</div>
@@ -317,10 +340,12 @@ function Steps({
   open,
   onToggle,
   redirectUri,
+  baseUrl,
 }: {
   open: boolean
   onToggle: () => void
   redirectUri: string
+  baseUrl: string
 }) {
   return (
     <div className="steps">
@@ -381,10 +406,20 @@ function Steps({
             Under <strong>Authorized redirect URIs</strong>, press <strong>Add URI</strong> and
             paste this exactly:
             <CopyBox value={redirectUri} />
+            <div className="steps__note steps__note--warn">
+              Google only accepts <code>http://</code> for <code>localhost</code>, rejects IP
+              addresses, and requires a hostname ending in a public domain such as{' '}
+              <code>.com</code>. A normal LAN address —{' '}
+              <code>http://192.168.1.50:8080</code>, <code>http://calendar.local</code>, a bare
+              machine name — is refused with <em>"must end with a public top-level domain"</em>.
+              If that is you, register{' '}
+              <code>{localhostAlternative(baseUrl)}/api/accounts/google/callback</code> instead
+              and do the connect step over an SSH tunnel; the box below the steps explains it.
+            </div>
             <div className="steps__note">
-              If your family reaches this app at more than one address, add one URI for each.
-              A mismatch here is the cause of nearly every <code>redirect_uri_mismatch</code>{' '}
-              error.
+              If your family reaches this app at more than one accepted address, add one URI for
+              each. A mismatch is the cause of nearly every{' '}
+              <code>redirect_uri_mismatch</code> error.
             </div>
           </li>
           <li>

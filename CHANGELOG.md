@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.8
+
+**Fixed the Google setup advice for anyone on a home network.** Google refuses most
+LAN addresses as OAuth redirect URIs — no IP addresses, no `.local`, no bare machine
+names, and plain `http://` only for `localhost` — so following the old instructions
+ended at *"Invalid Redirect: must end with a public top-level domain"*. The examples
+in the docs were addresses Google would never have accepted.
+
+Settings → Google now checks your address before you go anywhere near the console,
+and if Google would refuse it, says so and gives you the two ways out: register the
+loopback URI and do the one-time connect over an SSH tunnel (it prints the exact
+command for your host), or put the app behind a real HTTPS name such as
+`tailscale serve`. The redirect URI is only used while connecting — refreshing a
+token never touches it — so the tunnel is needed once per person and never again.
+
 ## 0.2.7
 
 - **A typo in an event filter no longer reads as a broken server.**
