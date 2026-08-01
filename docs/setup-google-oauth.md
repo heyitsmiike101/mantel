@@ -198,6 +198,126 @@ private to your devices.
 
 ---
 
+## Walkthrough: your own domain, private network, valid certificate
+
+This is Option 2 done end to end. It takes about twenty minutes, costs whatever a domain
+costs, and once it's done every device in the house can connect an account with no tunnel and
+nothing to reconfigure. The example uses `calendar.example.com`; substitute your own.
+
+**What you need:** a domain you own, a reverse proxy (Caddy, Traefik, Nginx Proxy Manager),
+and API access to your DNS provider.
+
+### 1. Point a name at your proxy
+
+Find the address your devices already use to reach the proxy — the same IP your existing
+internal hostname resolves to:
+
+```bash
+dig +short whatever-you-use-today.lan
+```
+
+Create an **A record** for `calendar.example.com` pointing at that IP, with a short TTL.
+
+You can add it at your registrar even though it's a private address — a public record
+pointing at `10.x` or `192.168.x` is legal, and unroutable from outside, so nobody on the
+internet can reach it. If you'd rather publish nothing at all, add the record to your internal
+resolver instead; both work.
+
+> **If some devices can't resolve it**, you've hit **DNS rebinding protection** — routers and
+> Pi-hole often discard public answers that point to private IPs. Whitelist the domain in your
+> resolver, or use the internal-DNS route above.
+
+### 2. Get a certificate over DNS-01
+
+**HTTP-01 will not work**, and it's worth understanding why before you waste an hour on it:
+that challenge asks Let's Encrypt to fetch a file from your server over the public internet.
+Your record points at a private address, so LE cannot reach it, and the request fails every
+time.
+
+**DNS-01** proves ownership by publishing a TXT record instead. It needs no inbound access,
+and it works fine for a name that only resolves on your LAN.
+
+- **Nginx Proxy Manager** — SSL tab → *Request a new SSL Certificate* → tick **Use a DNS
+  Challenge**, pick your provider, paste an API token scoped to that zone.
+- **Caddy** — needs a build with your provider's plugin
+  (`xcaddy build --with github.com/caddy-dns/<provider>`):
+
+  ```
+  calendar.example.com {
+      tls {
+          dns <provider> {env.DNS_API_TOKEN}
+      }
+      reverse_proxy 192.168.1.50:8080
+  }
+  ```
+
+- **Traefik** — a `certificatesresolvers.le.acme.dnsChallenge.provider` entry plus the
+  provider's credentials in the environment.
+
+Two rules for the vhost:
+
+- Serve the app at the **root of the hostname**. `https://calendar.example.com/` is fine;
+  `https://home.example.com/calendar/` is not — the frontend assumes it is served from `/`.
+- The proxy terminates TLS and forwards **plain HTTP** to the container. The app doesn't read
+  `X-Forwarded-*` headers or build URLs from the request, so no special proxy configuration is
+  needed.
+
+### 3. Tell the app and tell Google
+
+```
+Settings → Google → This app's address     https://calendar.example.com
+Google Auth Platform → Clients → Add URI   https://calendar.example.com/api/accounts/google/callback
+```
+
+The warning banner in Settings disappears the moment the address is one Google will accept —
+that's your check before you go near the console.
+
+### 4. Verify it before blaming Google
+
+Four commands, in the order that isolates a failure fastest:
+
+```bash
+# 1. DNS resolves to your proxy
+dig +short calendar.example.com
+
+# 2. TLS is valid and the app answers
+curl -s -o /dev/null -w '%{http_code} tls=%{ssl_verify_result}\n' \
+  https://calendar.example.com/api/version
+
+# 3. The certificate is real and covers this name
+curl -sv https://calendar.example.com/api/version 2>&1 | grep -E 'subject:|issuer:|expire'
+
+# 4. The callback path reaches the app, not the proxy
+curl -s https://calendar.example.com/api/accounts/google/callback
+```
+
+Check 4 is the important one, and its *success* looks like an error:
+
+```json
+{"error":{"code":"validation_error","message":"[{'type': 'missing', 'loc': ('query', 'state') ...
+```
+
+That 422 is the app complaining that OAuth parameters are missing — which is exactly right for
+a callback opened by hand, and proves the path is routed to the app. An HTML 404, a 502, or
+anything mentioning your proxy by name means the vhost isn't forwarding that path.
+
+Interpreting check 2 if it fails:
+
+| Symptom | Cause |
+| ------- | ------ |
+| `unrecognized name`, TLS alert 112 | No certificate bound to that hostname — the vhost exists but has no cert, or the cert request failed |
+| Connection refused | Nothing listening on 443, or DNS points at the wrong host |
+| `certificate has expired` / self-signed | The proxy fell back to a default certificate; the DNS-01 request didn't complete |
+| 502 from the proxy | Certificate is fine; the upstream host/port is wrong |
+
+### Don't do this
+
+**Do not port-forward 443 to the proxy.** Everything above keeps the app on your own network,
+which is the point: Mantel has no authentication by design. A public DNS record pointing at a
+private IP exposes nothing. A port forward exposes your family's calendar to the internet.
+
+---
+
 ## Troubleshooting
 
 **"Invalid Redirect: must end with a public top-level domain"**

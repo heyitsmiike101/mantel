@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.10
+
+**Documented the setup that actually works on a home network.** The Google guide now has an
+end-to-end walkthrough for pointing a subdomain you own at your reverse proxy: the DNS record,
+why HTTP-01 certificates can never work for a private address and DNS-01 must be used instead,
+config for Nginx Proxy Manager / Caddy / Traefik, and the DNS-rebinding-protection gotcha that
+makes a name resolve on some devices and not others.
+
+It ends with four `curl` checks that isolate a failure in order, including the one that matters
+most: opening the callback path by hand should return the app's own 422 about a missing `state`
+parameter. That "error" is the proof the route reaches the app — an HTML 404 or a 502 means the
+proxy never forwarded it.
+
 ## 0.2.9
 
 **The redirect-URI check now catches private domains like `.lan`.** 0.2.8 warned about

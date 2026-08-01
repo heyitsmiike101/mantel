@@ -146,12 +146,14 @@ you want on the wall.
 written version at [docs/setup-google-oauth.md](docs/setup-google-oauth.md) if you'd rather read
 ahead.
 
-> ℹ️ **Google won't accept a LAN address as a redirect URI** — no IP addresses, no `.local`, no
-> bare machine names, and plain `http://` only for `localhost`. Since the redirect only matters
-> while someone is *connecting*, the fix is to register `http://localhost:PORT/...` and do that
-> one step over an SSH tunnel; the app detects this and shows you the exact commands. Or give it
-> a real HTTPS name — `tailscale serve` is the least work. Both paths are in
-> [the setup guide](docs/setup-google-oauth.md#connecting-when-your-app-is-on-a-lan-address).
+> ℹ️ **Google won't accept a LAN address as a redirect URI** — no IP addresses, no `.local` or
+> `.lan`, no bare machine names, and plain `http://` only for `localhost`. The app checks your
+> address and tells you before you go near the Google console. Three ways through it, all in
+> [the setup guide](docs/setup-google-oauth.md#connecting-when-your-app-is-on-a-lan-address):
+> connect once over an SSH tunnel using `localhost` (no infrastructure), run
+> `tailscale serve` (one command, valid certificate, `.ts.net` is a public domain), or
+> [point a subdomain you own at your reverse proxy](docs/setup-google-oauth.md#walkthrough-your-own-domain-private-network-valid-certificate)
+> with a DNS-01 certificate — private to your network, and permanent.
 
 > ⚠️ **Don't skip "Publish app"** in the Google Cloud console. An OAuth app left in *Testing*
 > mode expires every family member's connection after 7 days. Publishing doesn't submit your app
