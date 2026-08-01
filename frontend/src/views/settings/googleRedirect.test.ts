@@ -28,6 +28,33 @@ describe('googleRedirectProblem', () => {
     expect(googleRedirectProblem('http://app.localhost:8080')).toContain('public domain')
   })
 
+  it('rejects private suffixes even over https with a valid certificate', () => {
+    // The trap this test exists for: a reverse proxy serving https://family.lan has
+    // a real certificate and looks like a proper domain, so an earlier version of
+    // this check waved it through -- and Google refused it anyway.
+    for (const host of [
+      'family.lan',
+      'calendar.home',
+      'nas.internal',
+      'app.corp',
+      'box.intranet',
+      'server.private',
+      'thing.localdomain',
+      'pi.home.arpa',
+    ]) {
+      const problem = googleRedirectProblem(`https://${host}`)
+      expect(problem, `${host} should be rejected`).toContain('public domain')
+      expect(problem).toContain('private suffix')
+    }
+  })
+
+  it('still accepts a real domain that only resolves on the LAN', () => {
+    // Google never fetches the redirect URI -- the browser does -- so split-horizon
+    // DNS on a domain you own is fine, and must not be warned about.
+    expect(googleRedirectProblem('https://calendar.example.com')).toBeNull()
+    expect(googleRedirectProblem('https://mantel.co.uk')).toBeNull()
+  })
+
   it('rejects plain http on a real domain', () => {
     expect(googleRedirectProblem('http://calendar.example.com')).toContain('https://')
   })

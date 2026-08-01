@@ -97,6 +97,7 @@ under **Test users** on that same Audience page, and accept that everyone reconn
    | `http://localhost:8080`        | ✅ accepted — loopback is the documented exemption |
    | `https://calendar.example.com` | ✅ accepted                                        |
    | `http://192.168.1.50:8080`     | ❌ rejected — IP address                           |
+   | `https://family.lan`           | ❌ rejected — `.lan` isn't a public domain either  |
    | `http://calendar.local:8080`   | ❌ rejected — `.local` isn't a public domain       |
    | `http://my-server:8080`        | ❌ rejected — no public domain at all              |
 
@@ -110,8 +111,9 @@ under **Test users** on that same Audience page, and accept that everyone reconn
 
 Open **Settings → Google** in Family Calendar. No file editing, and no restart.
 
-1. **This app's address** — how your family reaches the app, e.g. `http://192.168.1.50:8080`.
-   It must match what you registered in Step 5. The page shows the resulting **Redirect URI**
+1. **This app's address** — the address you registered in Step 5, which for most self-hosters
+   is `http://localhost:PORT` rather than the address the family actually browses to. The app
+   warns you here if Google would refuse what you have entered. The page shows the resulting **Redirect URI**
    right underneath, with a copy button, so you can check the two agree.
 2. **Client ID** and **Client secret** — paste both from the Google dialog.
 
@@ -140,8 +142,10 @@ for the ones you want on the wall.
 
 ## Connecting when your app is on a LAN address
 
-If you reach the app at something like `http://my-server:8099` or `http://192.168.1.50:8080`,
-Google will not accept that as a redirect URI. You have two options.
+If you reach the app at something like `http://my-server:8099`, `http://192.168.1.50:8080` or
+`https://family.lan`, Google will not accept that as a redirect URI — including through a
+reverse proxy with a valid certificate, because `.lan` is not a public domain. You have two
+options.
 
 ### Option 1 — connect over localhost (no infrastructure)
 
@@ -175,6 +179,18 @@ Put the app behind a name Google accepts and this problem disappears for good:
   internet, and `.ts.net` is a public domain. This is the least work by a distance.
 - **A reverse proxy** — Caddy or Traefik with a domain you own and a Let's Encrypt
   certificate, optionally on a DNS name that only resolves inside your network.
+
+  **A private TLD is not enough.** If your proxy already serves the app at something
+  like `https://family.lan` or `https://calendar.home`, Google still refuses it —
+  `.lan`, `.home`, `.internal` and friends are not public domains, and a valid
+  certificate makes no difference. You need a name under a domain you actually own.
+
+  The good news is that **the name does not have to be reachable from the internet**.
+  Google never fetches your redirect URI; the redirect happens in your browser. So a
+  record like `calendar.yourdomain.com` pointing at a LAN address, with a certificate
+  issued over DNS-01, satisfies Google while staying entirely private — and you can
+  keep `family.lan` on the same proxy for everyday use, since the app doesn't care
+  which hostname it's reached on.
 
 Then set **This app's address** to that URL and register it in Google normally. Do not expose
 the app itself to the internet — it has no authentication. A Tailscale-only address stays

@@ -13,6 +13,29 @@
  * localhost for the one-time connect, or put it behind a real HTTPS domain".
  * Returning that as a sentence beats letting Google say "Invalid Redirect".
  */
+/** Suffixes that look like domains but are not on the public suffix list, so Google
+ *  refuses them. These are the names homelabs actually use -- `.lan` and `.home` are
+ *  the defaults on a lot of routers, and `.internal` is Google Cloud's own private
+ *  zone. A full public-suffix-list check would be more correct and far heavier; this
+ *  covers the cases that come up, and anything missed still fails visibly in Google
+ *  rather than silently here. */
+const PRIVATE_SUFFIXES = [
+  '.lan',
+  '.local',
+  '.localhost',
+  '.localdomain',
+  '.home',
+  '.home.arpa',
+  '.arpa',
+  '.internal',
+  '.intranet',
+  '.private',
+  '.corp',
+  '.test',
+  '.example',
+  '.invalid',
+]
+
 export function googleRedirectProblem(baseUrl: string): string | null {
   let url: URL
   try {
@@ -41,11 +64,15 @@ export function googleRedirectProblem(baseUrl: string): string | null {
     )
   }
 
-  if (!host.includes('.') || host.endsWith('.local') || host.endsWith('.localhost')) {
+  const privateSuffix = PRIVATE_SUFFIXES.find((s) => host.endsWith(s))
+  if (!host.includes('.') || privateSuffix) {
+    const what = privateSuffix
+      ? `“${privateSuffix}” is a private suffix, not a public domain`
+      : `“${host}” has no domain at all`
     return (
-      `Google needs a hostname ending in a public domain such as .com — “${host}” isn't ` +
-      `one, so it will answer “Invalid Redirect”. Use localhost for the one-time connect, ` +
-      `or a real domain over HTTPS.`
+      `Google needs a hostname ending in a public domain such as .com — ${what}, so it ` +
+      `will answer “Invalid Redirect”, certificate or not. Use localhost for the ` +
+      `one-time connect, or a real domain over HTTPS.`
     )
   }
 

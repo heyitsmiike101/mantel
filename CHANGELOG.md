@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.9
+
+**The redirect-URI check now catches private domains like `.lan`.** 0.2.8 warned about
+IP addresses, bare hostnames and `.local`, but waved through anything else that had a
+dot in it and used HTTPS — so a reverse proxy serving `https://family.lan`, which is
+what a lot of homelabs look like, was told it was fine and then refused by Google.
+`.lan`, `.home`, `.internal`, `.corp`, `.intranet`, `.private` and friends are now
+rejected with an explanation, because a valid certificate makes no difference: the
+name has to be under a domain you actually own.
+
+The setup guide adds the useful half of that: the name doesn't have to be reachable
+from the internet. Google never fetches the redirect URI — your browser does — so a
+record under your own domain pointing at a LAN address works, and you can keep
+`family.lan` on the same proxy for everyday use.
+
 ## 0.2.8
 
 **Fixed the Google setup advice for anyone on a home network.** Google refuses most
