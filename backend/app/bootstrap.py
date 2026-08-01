@@ -13,6 +13,11 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "display_scale": "normal",  # normal | large | wall
     "day_start_hour": 7,
     "day_end_hour": 22,
+    # A shortcut to somewhere else in the house -- another dashboard, a camera
+    # page, whatever the wall display should be one tap away from. Empty by
+    # default so an install that never sets one gets no bar at all.
+    "bookmark_label": "",
+    "bookmark_url": "",
     # Screensaver / kiosk behaviour. A wall display is on 24/7, so idle handling
     # and a nightly blackout are part of normal operation, not a nice-to-have.
     "screensaver_enabled": True,

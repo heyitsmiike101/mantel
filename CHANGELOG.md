@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0
+
+**A configurable shortcut button on every page.** Set a label and a link under
+Settings → Display and a button appears in a slim bar at the top of every screen —
+for jumping to another dashboard, a camera page, whatever the wall display should be
+one tap away from.
+
+It is off by default. With no link set the bar isn't rendered and its grid row
+collapses to nothing, so an install that doesn't use it pays no vertical space —
+which is the resource a wall display has least of.
+
+The link is restricted to `http` and `https`. This is a field anyone on the network
+can write, and it lands in an `href`, so a `javascript:` URL would otherwise be
+stored XSS wearing a settings field. A bare host like `dash.lan/?view=wall` is
+accepted and gets `http://` added, since that's what people type.
+
 ## 0.2.12
 
 **`/api/sync/status` said Google wasn't configured even when it was.** Credentials moved

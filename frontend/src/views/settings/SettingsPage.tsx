@@ -313,6 +313,35 @@ function DisplayTab() {
         </select>
       </div>
 
+      <h3 className="settings__h3">Shortcut button</h3>
+      <p className="hint">
+        Adds a button to the top of every page, linking anywhere you like — another dashboard,
+        a camera page. Leave the link blank to remove the bar entirely.
+      </p>
+
+      <div className="row">
+        <div className="row__name row__name--static">Button text</div>
+        <input
+          className="row__name"
+          placeholder="wall"
+          defaultValue={settings.bookmark_label}
+          onBlur={(e) => save.mutate({ bookmark_label: e.target.value.trim() })}
+        />
+      </div>
+
+      <div className="row">
+        <div className="row__name row__name--static">
+          Link
+          <div className="hint">Must start with http:// or https://.</div>
+        </div>
+        <input
+          className="row__name"
+          placeholder="http://dash.lan/?view=wall"
+          defaultValue={settings.bookmark_url}
+          onBlur={(e) => save.mutate({ bookmark_url: e.target.value.trim() })}
+        />
+      </div>
+
       <p className="hint">
         Server version {settings.server.version} ·{' '}
         {settings.server.google_configured
