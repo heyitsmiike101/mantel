@@ -113,6 +113,26 @@ def test_filter_by_calendar_and_user(client, local_calendar):
     assert [e["title"] for e in by_user] == ["Take out trash"]
 
 
+def test_non_numeric_id_filters_are_rejected_not_a_server_error(client, local_calendar):
+    """A typo in a filter is the caller's mistake, so it must not read as ours.
+
+    `int()` on a non-numeric part used to raise straight out of the handler,
+    which FastAPI surfaces as a 500 — indistinguishable from the calendar
+    actually being broken.
+    """
+    make_event(client, local_calendar["id"], title="Family thing")
+    params = {"start": "2026-08-03T00:00:00Z", "end": "2026-08-04T00:00:00Z"}
+    for field in ("calendar_ids", "user_ids"):
+        r = client.get("/api/events", params={**params, field: "abc"})
+        assert r.status_code == 400, f"{field}=abc gave {r.status_code}"
+        assert field in r.json()["error"]["message"]
+
+    # Trailing and repeated separators are sloppy, not wrong.
+    ok = client.get("/api/events", params={**params, "calendar_ids": f",{local_calendar['id']},,"})
+    assert ok.status_code == 200
+    assert [e["title"] for e in ok.json()] == ["Family thing"]
+
+
 def test_text_search(client, local_calendar):
     make_event(client, local_calendar["id"], title="Dentist appointment")
     make_event(client, local_calendar["id"], title="Soccer practice")
