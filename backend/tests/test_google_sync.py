@@ -239,3 +239,85 @@ def test_pulled_events_appear_in_the_events_api_with_owner_color(client, db, fak
     assert body[0]["title"] == "Standup"
     assert body[0]["origin"] == "google"
     assert body[0]["color"] == "#3b82f6"
+
+
+# ------------------- discovery on every sync (not just at link) --------------
+
+
+def test_sync_run_picks_up_a_calendar_added_after_linking(client, db, fake, gcal):
+    """The reason this exists: discovery used to run only when an account was
+    linked, so a calendar created in Google afterwards never appeared and the
+    only fix was to unlink and reconnect."""
+    fake.calendars = [{"id": "primary", "summary": "Mike Google", "accessRole": "owner"}]
+    assert client.post("/api/sync/run").json()["new_calendars"] == 0
+
+    # ...somebody adds a calendar in Google.
+    fake.calendars.append(
+        {"id": "soccer@group.calendar.google.com", "summary": "Soccer", "accessRole": "writer"}
+    )
+
+    body = client.post("/api/sync/run").json()
+    assert body["new_calendars"] == 1
+
+    names = [c["name"] for c in client.get("/api/calendars").json()]
+    assert "Soccer" in names
+
+    # A second run must not report it again.
+    assert client.post("/api/sync/run").json()["new_calendars"] == 0
+
+
+def test_discover_endpoint_reports_new_and_total(client, db, fake, gcal):
+    fake.calendars = [
+        {"id": "primary", "summary": "Mike Google", "accessRole": "owner"},
+        {"id": "book-club", "summary": "Book club", "accessRole": "reader"},
+    ]
+    body = client.post("/api/sync/calendars").json()
+
+    assert body["new_calendars"] == 1  # `primary` already existed from the fixture
+    assert body["total_calendars"] == 2
+
+
+def test_a_newly_found_calendar_does_not_start_syncing(client, db, fake, gcal):
+    """Nothing may appear on the wall display because a calendar showed up in
+    Google -- somebody has to switch it on."""
+    fake.calendars = [
+        {"id": "primary", "summary": "Mike Google", "accessRole": "owner"},
+        {"id": "gym", "summary": "Gym", "accessRole": "reader"},
+    ]
+    client.post("/api/sync/calendars")
+
+    gym = next(c for c in client.get("/api/calendars").json() if c["name"] == "Gym")
+    assert gym["sync_enabled"] is False
+    assert gym["claimed_by_user_id"] is None
+
+
+def test_one_broken_account_does_not_stop_discovery_for_the_others(db, fake, gcal, monkeypatch):
+    """An expired token on one account must not hide another account's new calendars."""
+    from app.services.google_api import GoogleApiError
+
+    calls = {"n": 0}
+    real = google_sync.discover_calendars
+
+    def flaky(session, account):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise GoogleApiError(403, "token expired")
+        return real(session, account)
+
+    account = db.get(LinkedAccount, gcal.linked_account_id)
+    second = LinkedAccount(
+        user_id=account.user_id,
+        provider="google",
+        email="other@example.com",
+        access_token_enc=account.access_token_enc,
+        refresh_token_enc=account.refresh_token_enc,
+        token_expiry=account.token_expiry,
+    )
+    db.add(second)
+    db.commit()
+
+    fake.calendars = [{"id": "shared", "summary": "Shared", "accessRole": "reader"}]
+    monkeypatch.setattr(google_sync, "discover_calendars", flaky)
+
+    assert google_sync.discover_all(db) == 1
+    assert calls["n"] == 2

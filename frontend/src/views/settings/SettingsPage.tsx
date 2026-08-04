@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
@@ -146,6 +147,33 @@ function CalendarsTab() {
   const { data: calendars = [] } = useCalendars()
   const { data: users = [] } = useUsers()
   const [name, setName] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [found, setFound] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  // A calendar created or shared in Google after the account was linked only
+  // shows up once we re-read the list. Syncing does this on its own now; this is
+  // the "I just made one, show me" button.
+  const checkForNew = async () => {
+    setChecking(true)
+    setFound(null)
+    try {
+      const r = await api.post<{ new_calendars: number; total_calendars: number }>(
+        '/sync/calendars',
+      )
+      await queryClient.invalidateQueries({ queryKey: ['calendars'] })
+      setFound(
+        r.new_calendars === 0
+          ? `No new calendars — ${r.total_calendars} already listed.`
+          : `Found ${r.new_calendars} new calendar${r.new_calendars === 1 ? '' : 's'}. ` +
+            'Switch Syncing on for the ones you want.',
+      )
+    } catch (e) {
+      setFound(e instanceof Error ? e.message : 'Could not reach Google.')
+    } finally {
+      setChecking(false)
+    }
+  }
 
   const updateCal = useEntityMutation(
     ({ id, ...patch }: { id: number } & Partial<CalendarInfo>) =>
@@ -167,6 +195,19 @@ function CalendarsTab() {
       <p className="hint">
         Claiming a calendar assigns it to a person and gives its events that person's color.
       </p>
+
+      <div className="row">
+        <div className="row__name row__name--static">
+          Added a calendar in Google?
+          <div className="hint">
+            Syncing checks for new ones automatically — this is the impatient button.
+          </div>
+        </div>
+        <button className="btn" onClick={checkForNew} disabled={checking}>
+          {checking ? 'Checking…' : 'Check for new calendars'}
+        </button>
+      </div>
+      {found && <p className="banner">{found}</p>}
 
       {calendars.map((c) => (
         <div key={c.id} className="row">

@@ -34,6 +34,12 @@ class SyncStatusOut(BaseModel):
 class SyncRunOut(BaseModel):
     pulled: int
     pushed: int
+    new_calendars: int = 0
+
+
+class DiscoverOut(BaseModel):
+    new_calendars: int
+    total_calendars: int
 
 
 @router.get(
@@ -92,5 +98,27 @@ def sync_status(db: Session = Depends(get_db)) -> SyncStatusOut:
 )
 def run_sync(db: Session = Depends(get_db)) -> SyncRunOut:
     pushed = google_sync.push_pending(db)
+    # Discovery first, so a calendar added in Google is both listed *and* pulled
+    # in the same run once somebody switches it on.
+    new_calendars = google_sync.discover_all(db)
     pulled = google_sync.pull_all(db)
-    return SyncRunOut(pulled=pulled, pushed=pushed)
+    return SyncRunOut(pulled=pulled, pushed=pushed, new_calendars=new_calendars)
+
+
+@router.post(
+    "/calendars",
+    response_model=DiscoverOut,
+    summary="Check Google for new calendars",
+    description=(
+        "Re-reads the calendar list of every linked Google account. A calendar created "
+        "or shared with the account after it was linked shows up here. New calendars "
+        "arrive with syncing switched off, so nothing appears on a display until "
+        "somebody enables it."
+    ),
+)
+def discover_calendars(db: Session = Depends(get_db)) -> DiscoverOut:
+    new_calendars = google_sync.discover_all(db)
+    total = db.scalar(
+        select(func.count()).select_from(Calendar).where(Calendar.linked_account_id.is_not(None))
+    )
+    return DiscoverOut(new_calendars=new_calendars, total_calendars=total or 0)

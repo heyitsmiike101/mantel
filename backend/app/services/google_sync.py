@@ -57,6 +57,41 @@ def discover_calendars(db: Session, account: LinkedAccount) -> list[Calendar]:
 # -------------------------------- Pull ---------------------------------------
 
 
+def discover_all(db: Session) -> int:
+    """Re-read every linked account's calendar list, and report how many are new.
+
+    Discovery used to run once, when an account was linked. A calendar created or
+    shared in Google afterwards was invisible here until the account was unlinked
+    and reconnected -- which loses nothing but looks like the app is broken. It is
+    one cheap API call per account, so it now runs on every sync.
+
+    A failure for one account must not stop the others: an expired token should
+    not stop a working account from picking up its new calendars.
+    """
+    accounts = db.scalars(
+        select(LinkedAccount).where(LinkedAccount.status == "active")
+    ).all()
+
+    added = 0
+    for account in accounts:
+        known = set(
+            db.scalars(
+                select(Calendar.google_calendar_id).where(
+                    Calendar.linked_account_id == account.id
+                )
+            )
+        )
+        try:
+            found = discover_calendars(db, account)
+        except (GoogleApiError, GoogleAuthError) as exc:
+            log.warning("Calendar discovery failed for %s: %s", account.email, exc)
+            db.rollback()
+            continue
+        added += sum(1 for cal in found if cal.google_calendar_id not in known)
+
+    return added
+
+
 def pull_calendar(db: Session, cal: Calendar) -> int:
     """Brings one calendar up to date from Google. Returns the number of changes applied."""
     account = cal.account
@@ -159,6 +194,11 @@ def _apply_remote_event(db: Session, cal: Calendar, item: dict) -> int:
 
 
 def pull_all(db: Session) -> int:
+    # Look for calendars added in Google since the last run, so a new one appears
+    # on the Calendars page by itself. New calendars arrive with syncing off, so
+    # this can never drop unexpected events onto the wall.
+    discover_all(db)
+
     total = 0
     calendars = db.scalars(
         select(Calendar).where(

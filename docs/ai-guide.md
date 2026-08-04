@@ -182,7 +182,7 @@ new `position`.
 | Weather   | `GET /api/weather`, `GET /api/weather/search?q=`                              |
 | Lists     | `GET/POST /api/lists`, `GET/PATCH/DELETE /api/lists/{id}`, `POST /api/lists/{id}/items`, `PATCH/DELETE /api/lists/{id}/items/{item_id}`, `POST /api/lists/{id}/clear-checked` |
 | Feeds     | `GET /api/feeds/token`, `GET /api/feeds/all.ics?token=`, `GET /api/feeds/{calendar_id}.ics?token=` |
-| Sync      | `GET /api/sync/status`, `POST /api/sync/run`                                  |
+| Sync      | `GET /api/sync/status`, `POST /api/sync/run`, `POST /api/sync/calendars`      |
 | Settings  | `GET/PATCH /api/settings`                                                     |
 
 Photos are screensaver images. `POST /api/photos` takes multipart form-data under `file` and

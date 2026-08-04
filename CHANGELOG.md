@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+**A calendar you create in Google now shows up on its own.** Discovery only ever ran
+once, at the moment an account was linked, so a calendar made or shared afterwards was
+invisible here — and the only way to pick it up was to unlink the account and reconnect
+it. Every sync now re-reads each account's calendar list, and **Settings → Calendars**
+has a *Check for new calendars* button for when you don't want to wait for the timer.
+
+New calendars still arrive with syncing switched off and unclaimed, so nothing lands on
+a wall display because it appeared in Google. A failure on one account no longer hides
+another account's new calendars.
+
 ## 0.3.0
 
 **A configurable shortcut button on every page.** Set a label and a link under
