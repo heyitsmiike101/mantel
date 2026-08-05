@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.2
+
+**Adding an event no longer offers calendars that would swallow it.** The picker listed
+every writable calendar, including Google calendars with syncing switched off — and the
+push queue skips those, so the event saved locally, appeared on the wall, and never
+reached Google, with nothing to say so. Only calendars that can actually carry an event
+are offered now. Editing an existing event still lists the calendar it already lives on,
+even if that one has since been switched off, so nothing moves behind your back.
+
+**Syncing on/off moved to Settings → Calendars**, next to the claim dropdown, along with
+the "synced 5 min ago" and error hints. That page already told you to switch Syncing on
+for a calendar — a control that lived on the other tab. Settings → Google no longer lists
+calendars at all; it is about credentials and connected accounts, and keeps "Sync now".
+
 ## 0.3.1
 
 **A calendar you create in Google now shows up on its own.** Discovery only ever ran

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api/hooks'
 import type { CalendarEvent } from '../api/types'
+import { pickableCalendars } from './pickableCalendars'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
 import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
 
@@ -18,9 +19,13 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
   const update = useUpdateEvent()
   const remove = useDeleteEvent()
 
-  const writable = calendars.filter((c) => c.writable)
   const isNew = event === null
   const readOnly = event !== null && !event.editable
+
+  // Only calendars that can actually carry an event -- see pickableCalendars for why a
+  // switched-off Google calendar would swallow one silently.
+  const writable = pickableCalendars(calendars)
+  const choices = isNew ? writable : pickableCalendars(calendars, event.calendar_id)
 
   const [title, setTitle] = useState(event?.title ?? '')
   const [location, setLocation] = useState(event?.location ?? '')
@@ -130,7 +135,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
             onChange={(e) => setCalendarId(Number(e.target.value))}
             disabled={readOnly || !isNew}
           >
-            {(isNew ? writable : calendars).map((c) => (
+            {choices.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
                 {c.account_email ? ` (${c.account_email})` : ''}

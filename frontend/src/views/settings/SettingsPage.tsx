@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
@@ -9,6 +9,7 @@ import { ScreenTab } from './ScreenTab'
 import { SharingTab } from './SharingTab'
 import { WeatherTab } from './WeatherTab'
 import { PALETTE } from './palette'
+import { timeAgo } from './timeAgo'
 
 const TABS = [
   'people',
@@ -143,9 +144,24 @@ function PeopleTab() {
   )
 }
 
+interface CalendarSyncStatus {
+  calendars: {
+    calendar_id: number
+    last_synced_at: string | null
+    sync_error: string | null
+  }[]
+}
+
 function CalendarsTab() {
   const { data: calendars = [] } = useCalendars()
   const { data: users = [] } = useUsers()
+  // Only for the "synced 5 min ago" / error hints beside each Syncing toggle --
+  // a switch with no feedback gives you no way to tell it worked.
+  const { data: status } = useQuery({
+    queryKey: ['sync-status'],
+    queryFn: () => api.get<CalendarSyncStatus>('/sync/status'),
+    refetchInterval: 30_000,
+  })
   const [name, setName] = useState('')
   const [checking, setChecking] = useState(false)
   const [found, setFound] = useState<string | null>(null)
@@ -178,7 +194,8 @@ function CalendarsTab() {
   const updateCal = useEntityMutation(
     ({ id, ...patch }: { id: number } & Partial<CalendarInfo>) =>
       api.patch<CalendarInfo>(`/calendars/${id}`, patch),
-    ['calendars', 'events'],
+    // 'sync-status' too: toggling Syncing changes the hints on this very row.
+    ['calendars', 'events', 'sync-status'],
   )
   const createCal = useEntityMutation(
     (body: { name: string }) => api.post<CalendarInfo>('/calendars', body),
@@ -193,7 +210,9 @@ function CalendarsTab() {
     <section className="panel">
       <h2>Calendars</h2>
       <p className="hint">
-        Claiming a calendar assigns it to a person and gives its events that person's color.
+        Claiming a calendar assigns it to a person and gives its events that person's colour.
+        <strong> Syncing</strong> decides whether a Google calendar appears at all — one that's
+        switched off shows no events and can't be picked when adding one.
       </p>
 
       <div className="row">
@@ -209,39 +228,59 @@ function CalendarsTab() {
       </div>
       {found && <p className="banner">{found}</p>}
 
-      {calendars.map((c) => (
-        <div key={c.id} className="row">
-          <span className="swatch" style={{ background: c.color }} />
-          <div className="row__name row__name--static">
-            <div>{c.name}</div>
-            <div className="hint">
-              {c.is_local ? 'Local calendar' : `Google · ${c.account_email ?? ''}`}
-              {!c.writable && ' · read-only'}
+      {calendars.map((c) => {
+        const sync = status?.calendars.find((s) => s.calendar_id === c.id)
+        return (
+          <div key={c.id} className="row">
+            <span className="swatch" style={{ background: c.color }} />
+            <div className="row__name row__name--static">
+              <div>{c.name}</div>
+              <div className="hint">
+                {c.is_local ? 'Local calendar' : `Google · ${c.account_email ?? ''}`}
+                {!c.writable && ' · read-only'}
+                {sync?.last_synced_at && ` · synced ${timeAgo(sync.last_synced_at)}`}
+                {sync?.sync_error && ` · ${sync.sync_error.slice(0, 70)}`}
+              </div>
             </div>
+            <select
+              value={c.claimed_by_user_id ?? ''}
+              onChange={(e) =>
+                updateCal.mutate({
+                  id: c.id,
+                  claimed_by_user_id: e.target.value ? Number(e.target.value) : null,
+                })
+              }
+            >
+              <option value="">Unclaimed</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+            {/* Local calendars are always on -- there is nothing to sync them with. */}
+            {!c.is_local && (
+              <button
+                className="btn"
+                aria-current={c.sync_enabled ? 'page' : undefined}
+                title={
+                  c.sync_enabled
+                    ? 'Syncing with Google. Switch off to hide it and stop syncing.'
+                    : 'Not syncing. Its events are hidden and it cannot be picked for a new event.'
+                }
+                onClick={() => updateCal.mutate({ id: c.id, sync_enabled: !c.sync_enabled })}
+              >
+                {c.sync_enabled ? 'Syncing' : 'Off'}
+              </button>
+            )}
+            {c.is_local && (
+              <button className="btn btn--danger" onClick={() => deleteCal.mutate(c.id)}>
+                Delete
+              </button>
+            )}
           </div>
-          <select
-            value={c.claimed_by_user_id ?? ''}
-            onChange={(e) =>
-              updateCal.mutate({
-                id: c.id,
-                claimed_by_user_id: e.target.value ? Number(e.target.value) : null,
-              })
-            }
-          >
-            <option value="">Unclaimed</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-          {c.is_local && (
-            <button className="btn btn--danger" onClick={() => deleteCal.mutate(c.id)}>
-              Delete
-            </button>
-          )}
-        </div>
-      ))}
+        )
+      })}
 
       <div className="row">
         <input

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
-import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
-import type { AppSettings, CalendarInfo } from '../../api/types'
+import { useEntityMutation, useSettings, useUsers } from '../../api/hooks'
+import type { AppSettings } from '../../api/types'
 import { googleRedirectProblem, localhostAlternative, tunnelCommand } from './googleRedirect'
 
 interface LinkedAccount {
@@ -33,7 +33,6 @@ interface SyncStatus {
 export function GoogleTab() {
   const { data: settings } = useSettings()
   const { data: users = [] } = useUsers()
-  const { data: calendars = [] } = useCalendars()
   const { data: accounts = [], refetch: refetchAccounts } = useQuery({
     queryKey: ['accounts'],
     queryFn: () => api.get<LinkedAccount[]>('/accounts'),
@@ -61,11 +60,6 @@ export function GoogleTab() {
   const unlink = useEntityMutation(
     (id: number) => api.del<void>(`/accounts/${id}`),
     ['accounts', 'calendars', 'events', 'sync-status'],
-  )
-  const updateCal = useEntityMutation(
-    ({ id, ...patch }: { id: number } & Partial<CalendarInfo>) =>
-      api.patch<CalendarInfo>(`/calendars/${id}`, patch),
-    ['calendars', 'events', 'sync-status'],
   )
 
   if (!settings) return null
@@ -272,59 +266,8 @@ export function GoogleTab() {
 
       {error && <p className="banner banner--warn">{error}</p>}
 
-      <h3 className="settings__h3">Calendars</h3>
-      <p className="hint">
-        Choose who each calendar belongs to and switch on the ones you want on the wall. Its
-        events then show in that person's colour.
-      </p>
-
-      {calendars.filter((c) => !c.is_local).length === 0 && (
-        <p className="hint">Nothing yet — connect an account above.</p>
-      )}
-
-      {calendars
-        .filter((c) => !c.is_local)
-        .map((c) => {
-          const cal = status?.calendars.find((s) => s.calendar_id === c.id)
-          return (
-            <div key={c.id} className="row">
-              <span className="swatch" style={{ background: c.color }} />
-              <div className="row__name row__name--static">
-                <div>{c.name}</div>
-                <div className="hint">
-                  {c.account_email}
-                  {!c.writable && ' · read-only in Google'}
-                  {cal?.last_synced_at && ` · synced ${timeAgo(cal.last_synced_at)}`}
-                  {cal?.sync_error && ` · ${cal.sync_error.slice(0, 70)}`}
-                </div>
-              </div>
-              <select
-                value={c.claimed_by_user_id ?? ''}
-                onChange={(e) =>
-                  updateCal.mutate({
-                    id: c.id,
-                    claimed_by_user_id: e.target.value ? Number(e.target.value) : null,
-                  })
-                }
-              >
-                <option value="">Nobody</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn"
-                aria-current={c.sync_enabled ? 'page' : undefined}
-                onClick={() => updateCal.mutate({ id: c.id, sync_enabled: !c.sync_enabled })}
-              >
-                {c.sync_enabled ? 'Syncing' : 'Off'}
-              </button>
-            </div>
-          )
-        })}
-
+      {/* Which calendars are shown, who owns them, and whether each one syncs all live
+          in Settings -> Calendars. This tab is about the connection to Google. */}
       {status && (
         <div className="row">
           <div className="row__name row__name--static hint">
@@ -504,12 +447,4 @@ function CopyBox({ value }: { value: string }) {
       </button>
     </div>
   )
-}
-
-function timeAgo(iso: string): string {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins} min ago`
-  const hours = Math.round(mins / 60)
-  return hours < 24 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`
 }
