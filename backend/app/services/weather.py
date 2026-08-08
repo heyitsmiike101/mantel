@@ -16,6 +16,7 @@ panel never shows an error and never disappears.
 
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Any
 
@@ -53,9 +54,78 @@ def unavailable(reason: str) -> dict:
 # ------------------------------- geocoding -----------------------------------
 
 
+#: "33556", "33556-1234", or "33556, ca" to say which country a bare number means.
+_POSTCODE = re.compile(r"^\s*(\d{5})(?:-\d{4})?\s*(?:,\s*([A-Za-z]{2})\s*)?$")
+
+
+def _postcode_query(query: str) -> tuple[str, str] | None:
+    """Split a postcode search into (country, code), or None if it isn't one."""
+    m = _POSTCODE.match(query)
+    if not m:
+        return None
+    return (m.group(2) or "us").lower(), m.group(1)
+
+
+def geocode_postcode(session: Session, country: str, code: str) -> list[dict]:
+    """Look up a postcode properly, rather than hoping a name search understands it.
+
+    Open-Meteo's geocoder matches on *place name*, so a US ZIP is not a query it can
+    answer -- and it does not say so. Searching "33556" returns Cangas de Onis in
+    Spain with every field populated and no hint that it is unrelated to the number
+    you typed. A wrong forecast that looks right is worse than no forecast, which is
+    why this does not go through that endpoint at all.
+
+    Zippopotam.us is a free postcode-to-coordinates service with no key and no quota.
+    Returning [] on any failure lets the caller fall back to the name search.
+    """
+    body, _ = fetch(
+        session,
+        f"postcode:{country}:{code}",
+        f"https://api.zippopotam.us/{country}/{code}",
+        GEOCODE_TTL,
+    )
+    if not body:
+        return []
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return []
+
+    out = []
+    for place in payload.get("places") or []:
+        try:
+            lat = float(place["latitude"])
+            lon = float(place["longitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        name = place.get("place name") or code
+        admin1 = place.get("state")
+        country_name = payload.get("country")
+        out.append(
+            {
+                "name": name,
+                "admin1": admin1,
+                "country": country_name,
+                "latitude": lat,
+                "longitude": lon,
+                # The code goes in the label so it is obvious the right one was found.
+                "label": ", ".join(p for p in (f"{name} {code}", admin1, country_name) if p),
+            }
+        )
+    return out
+
+
 def geocode(session: Session, query: str) -> list[dict]:
-    """Turn a town or postcode into coordinates via Open-Meteo's free geocoder, so
-    nobody has to look up their own latitude."""
+    """Turn a town or postcode into coordinates, so nobody has to look up their own
+    latitude. A postcode takes a different route -- see geocode_postcode."""
+    postcode = _postcode_query(query)
+    if postcode:
+        results = geocode_postcode(session, *postcode)
+        if results:
+            return results
+        # Fall through: a five-digit string that no postcode service knows might
+        # still be a place name somewhere, and an empty list helps nobody.
+
     body, _ = fetch(
         session,
         f"geocode:{query.lower().strip()}",

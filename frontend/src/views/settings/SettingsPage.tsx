@@ -218,9 +218,9 @@ function CalendarsTab() {
       <h2>Calendars</h2>
       <p className="hint">
         Every calendar in the house, wherever it comes from — Google, Apple, or made here.
-        Claiming one assigns it to a person and gives its events that person's colour.
-        <strong> Syncing</strong> decides whether a connected calendar appears at all — one
-        that's switched off shows no events and can't be picked when adding one.
+        <strong> Assign a calendar to somebody</strong> and it starts syncing straight away,
+        with its events in that person's colour. Set it back to Unclaimed and it stops
+        syncing and disappears from the wall.
       </p>
 
       <div className="row">
@@ -267,20 +267,21 @@ function CalendarsTab() {
                 </option>
               ))}
             </select>
-            {/* Local calendars are always on -- there is nothing to sync them with. */}
+            {/* Not a switch: syncing follows the claim. Assigning somebody a calendar
+                and wanting it to sync are the same wish, so this reports rather than
+                asks. Local calendars have nothing to sync with, so they say nothing. */}
             {!c.is_local && (
-              <button
-                className="btn"
-                aria-current={c.sync_enabled ? 'page' : undefined}
+              <span
+                className="syncstate"
+                data-on={c.sync_enabled}
                 title={
                   c.sync_enabled
-                    ? `Syncing with ${providerName(c)}. Switch off to hide it and stop syncing.`
-                    : 'Not syncing. Its events are hidden and it cannot be picked for a new event.'
+                    ? `Syncing with ${providerName(c)} because it belongs to somebody.`
+                    : 'Assign this calendar to somebody and it will start syncing.'
                 }
-                onClick={() => updateCal.mutate({ id: c.id, sync_enabled: !c.sync_enabled })}
               >
-                {c.sync_enabled ? 'Syncing' : 'Off'}
-              </button>
+                {c.sync_enabled ? 'Syncing' : 'Not synced'}
+              </span>
             )}
             {c.is_local && (
               <button className="btn btn--danger" onClick={() => deleteCal.mutate(c.id)}>

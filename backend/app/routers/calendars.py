@@ -6,6 +6,7 @@ from ..db import get_db
 from ..models import Calendar
 from ..schemas import CalendarCreate, CalendarOut, CalendarUpdate
 from ..serializers import calendar_out
+from ..services.pullsignal import request_pull
 
 router = APIRouter(prefix="/calendars", tags=["calendars"])
 
@@ -69,7 +70,11 @@ def get_calendar(calendar_id: int, db: Session = Depends(get_db)) -> CalendarOut
     summary="Update a calendar (claim it, recolor it, toggle sync)",
     description=(
         "Set `claimed_by_user_id` to have a family member claim this calendar — that is what "
-        "makes it visible and gives its events that person's color."
+        "makes it visible and gives its events that person's color.\n\n"
+        "**Claiming a synced calendar switches syncing on, and unclaiming switches it off.** "
+        "Wanting somebody's calendar on the wall and wanting it to sync are the same wish, so "
+        "they are one action rather than two. Send `sync_enabled` in the same request to "
+        "override that — an explicit value always wins."
     ),
 )
 def update_calendar(
@@ -79,9 +84,22 @@ def update_calendar(
     changes = payload.model_dump(exclude_unset=True)
     if cal.is_local and changes.get("sync_enabled"):
         raise HTTPException(400, "Local calendars cannot sync to Google")
+
+    # Claiming and syncing were two switches that always wanted the same answer, and
+    # a calendar claimed but left un-synced is the confusing state: it shows a person's
+    # name, and no events. Local calendars are left alone -- there is nothing to sync.
+    if "claimed_by_user_id" in changes and "sync_enabled" not in changes and not cal.is_local:
+        changes["sync_enabled"] = changes["claimed_by_user_id"] is not None
+
+    was_syncing = cal.sync_enabled
     for key, value in changes.items():
         setattr(cal, key, value)
     db.commit()
+
+    # Somebody is watching this screen waiting for that person's events to appear.
+    # Waking the pull loop turns a five-minute wait into a couple of seconds.
+    if cal.sync_enabled and not was_syncing:
+        request_pull()
     db.refresh(cal)
     return calendar_out(cal)
 
