@@ -407,24 +407,33 @@
      card's buttons on a phone and there is no way to scroll to them. */
   height: var(--app-height, 100%);
   background: rgba(0, 0, 0, 0.65);
-  display: grid;
-  place-items: center;
+  /* The overlay is what scrolls, not the card. `place-items: center` centred the
+     card by pushing its top *above* the overlay when it was too tall to fit --
+     off-screen, and unreachable, because nothing here scrolled. A flex box that
+     scrolls, with `margin: auto` on the card, centres it while there is room and
+     lets you scroll to the top the moment there isn't. */
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   z-index: 100;
   padding: 12px;
 }
 
 .modal__card {
-  /* With the keyboard up there may be very little room; the card scrolls rather
-     than overflowing off the top of the screen. */
-  max-height: 100%;
-  overflow-y: auto;
+  /* Centred when it fits, top-aligned when it does not -- and the overlay above
+     scrolls to the rest.
+     There is deliberately no max-height here. It used to be 92vh, and vh is the
+     *layout* viewport, which does not shrink for the keyboard: the card was
+     allowed to be 92% of the whole screen while only a third of it was visible,
+     which is what put the title out of reach. */
+  margin: auto;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
   width: min(560px, 100%);
-  max-height: 92vh;
-  overflow-y: auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
