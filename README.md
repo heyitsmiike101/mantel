@@ -311,6 +311,8 @@ you run at home. It's all collected in the app under **Settings → API**.
 - **Interactive docs:** `/api/docs`
 - **Schema:** `/api/openapi.json`
 - **Guide written for AI agents:** `/api/ai-guide` — also readable at [docs/ai-guide.md](docs/ai-guide.md)
+- **Changing the code, human or AI:** [AGENTS.md](AGENTS.md) — the constraints that aren't
+  obvious from any one file
 
 ```bash
 # What's on this week?

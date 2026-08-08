@@ -1,4 +1,4 @@
-# Family Calendar — API guide for AI agents
+# Mantel — API guide for AI agents
 
 You are talking to a self-hosted family calendar that runs on a home network.
 **There is no authentication.** Every action the touchscreen UI can perform is available here.
@@ -9,11 +9,16 @@ You are talking to a self-hosted family calendar that runs on a home network.
 
 ## The model in one paragraph
 
-**Users** are family members; each has a name and a color. A user links one or more Google
-**accounts**. Each account exposes **calendars**, which a user *claims* — claiming is what makes
-a calendar visible and gives its events that person's color. **Events** live on a calendar. Events
-on Google- and iCloud-backed calendars sync both ways automatically; events on local calendars stay in
-this app. There is also a **dashboard** of widgets for the wall display.
+**Users** are family members; each has a name and a color. A user links one or more
+**accounts** — Google or iCloud, as many of each as they like. Each account exposes
+**calendars**, which a user *claims* — claiming is what makes a calendar visible and gives its
+events that person's color. **Events** live on a calendar. Events on Google- and iCloud-backed
+calendars sync both ways automatically; events on local calendars stay in this app. There is
+also a **dashboard** of widgets for the wall display.
+
+Which service a calendar came from is `account_provider`: `"google"`, `"icloud"`, or `null` for
+a calendar that exists only here. An event's `origin` is the same three values. **You rarely
+need to branch on it** — the one place it genuinely matters is repeating events, below.
 
 ## Conventions
 
@@ -84,9 +89,9 @@ Content-Type: application/json
 }
 ```
 
-Returns `201` with the created event. If the calendar is Google-backed the response has
-`"sync_state": "pending_create"` — the event is already saved and will reach Google or iCloud within
-seconds. Do not poll or retry.
+Returns `201` with the created event. If the calendar is backed by Google or iCloud the
+response has `"sync_state": "pending_create"` — the event is already saved and will reach the
+service within seconds. Do not poll or retry.
 
 ### 4. Move or rename an event
 
@@ -101,7 +106,7 @@ PATCH /api/events/12
 DELETE /api/events/12
 ```
 
-Returns `204`. For Google calendars the event is removed from Google too.
+Returns `204`. For a synced calendar the event is removed from Google or iCloud too.
 
 ### 6. Add an all-day event
 
@@ -141,6 +146,39 @@ that id changes the whole series, not one occurrence.
 Responses also include `recurrence_text`, a ready-to-display phrasing like
 `"Every week on Mon, Wed"`.
 
+### 6c. Connect an iCloud account
+
+The one linking flow you can drive end to end. Google needs a browser for OAuth; Apple does
+not, because there is no OAuth for iCloud calendars.
+
+```http
+POST /api/accounts/icloud
+{
+  "user_id": 1,
+  "apple_id": "someone@icloud.com",
+  "app_password": "abcd-efgh-ijkl-mnop"
+}
+```
+
+`app_password` is an **app-specific password** the person generates at appleid.apple.com under
+Sign-In and Security. It is not their Apple ID password, and asking for that one instead will
+simply fail. Whitespace is stripped; the dashes are part of it.
+
+The credential is checked against iCloud before anything is stored, so the response is
+trustworthy:
+
+- `201` — linked. The account's calendars are discovered in the same call.
+- `400` — the password was rejected, or was empty. **Nothing is stored**; there is no
+  half-linked account to clean up. Show the message and ask for a new password.
+- `502` — iCloud was unreachable. This is *not* a bad password. Retry later rather than
+  telling anybody to regenerate anything.
+- `404` — no such `user_id`.
+
+Posting again for the same Apple ID replaces the stored password, which is how an account that
+went stale is repaired. Discovered calendars arrive **unclaimed with syncing off** — nothing
+reaches the wall display until somebody opts in, so expect to follow up with
+`PATCH /api/calendars/{id}` setting `claimed_by_user_id` and `sync_enabled`.
+
 ### 7. Put something on the dashboard
 
 ```http
@@ -154,17 +192,32 @@ new `position`.
 
 ## Things that will trip you up
 
-- **Read-only calendars return 403.** Some Google calendars (holidays, shared subscriptions) are
-  subscribed read-only. Check `"writable"` on the calendar, or `"editable"` on the event, first.
+- **Read-only calendars return 403.** Holidays, shared subscriptions and calendars somebody
+  shared without edit rights are read-only, on both services. Check `"writable"` on the
+  calendar, or `"editable"` on the event, first. The error message names the service.
 - **`end_at` must be after `start_at`** — otherwise `400 bad_request`.
 - **Unclaimed calendars are dim grey** and generally not shown on the wall. Claim one by setting
   `claimed_by_user_id` via `PATCH /api/calendars/{id}`.
 - **Moving an event between calendars is not supported yet.** Delete and recreate instead.
-- **Two kinds of repeating event exist.** Ones this app owns have a `recurrence_rule`, are
-  stored once, and every returned occurrence shares the series' `id` — editing it edits the
-  whole series. Ones that came from Google arrive already expanded, with `recurrence_rule:
-  null` and `recurring: true`; each is a separate row, so editing one changes only that
-  occurrence.
+- **Repeating events behave in two different ways, and the difference is the provider.**
+  This is the one place `origin` matters, and getting it wrong edits more than you meant to.
+
+  | | `origin: "local"` or `"icloud"` | `origin: "google"` |
+  | --- | --- | --- |
+  | Stored as | one row, the series | one row per occurrence |
+  | `recurrence_rule` | set | `null` (`recurring: true`) |
+  | `id` on each occurrence | the same — the series' id | different for each |
+  | `PATCH` that id | changes **the whole series** | changes **that occurrence only** |
+  | `DELETE` that id | deletes **the whole series** | deletes **that occurrence only** |
+
+  Google is asked to expand its own series, so it sends instances. iCloud sends the rule and
+  this app expands it, exactly as it does for its own calendars. **Check `recurrence_rule`
+  before editing a `recurring` event**: if it is set, you are holding the series.
+
+- **A single occurrence of an iCloud series can be cancelled but not edited.** `DELETE` on an
+  occurrence that iCloud has already singled out (one somebody moved on their phone) removes
+  just that occurrence. There is no way to change one occurrence of a series from the API on
+  either service — that is a UI limitation, not a transport one.
 - **`user_ids` filters by person**, not by calendar: it matches whoever claimed the calendar an
   event lives on.
 
@@ -211,6 +264,9 @@ configuration lives — there is no config file to edit. Secrets (`google_client
 `ha_token`) are write-only: PATCH accepts them, GET always returns `""` and reports only
 whether one is set under `server.google_client_secret_set` / `server.ha_token_set`. Sending an
 empty string leaves a stored secret unchanged.
+
+**iCloud has no settings at all** — no client id, no secret, no redirect URI. An Apple ID is
+either linked or it is not, which `server.icloud_linked` and `GET /api/sync/status` report.
 
 `GET /api/version` is also how screens detect a new deployment — they poll it and hard-reload
 when the version changes.
