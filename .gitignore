@@ -18,3 +18,9 @@ frontend/dist/
 
 # TypeScript incremental build state -- machine-local, not source.
 frontend/tsconfig.tsbuildinfo
+
+# OneDrive conflicted copies. This repo lives in a synced folder, and OneDrive
+# writes "<name>-<device> Probably.<ext>" beside a file edited on two machines.
+# They are duplicates, never source.
+*-MikeBookPro Probably*
+*Probably.md

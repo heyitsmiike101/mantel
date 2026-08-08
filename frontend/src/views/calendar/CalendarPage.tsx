@@ -1,6 +1,6 @@
 import { format, isSameMonth } from 'date-fns'
 import { useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEvents, useSettings, useUsers } from '../../api/hooks'
 import type { CalendarEvent } from '../../api/types'
 import { EventModal } from '../../components/EventModal'
@@ -14,8 +14,18 @@ import { isViewKind, rangeFor, step } from './dateRange'
  *  short events big enough to tap. */
 const SCALE_FACTOR: Record<string, number> = { normal: 1, large: 1.2, wall: 1.45 }
 
+/** The phone shows one nav entry for the calendar, so the four views need a home
+ *  on the page itself. Hidden above phone size, where the nav still lists them. */
+const VIEW_TABS = [
+  { kind: 'today', label: 'Day' },
+  { kind: '3day', label: '3 Day' },
+  { kind: 'week', label: 'Week' },
+  { kind: 'month', label: 'Month' },
+] as const
+
 export function CalendarPage() {
   const { view } = useParams()
+  const navigate = useNavigate()
   const { data: settings } = useSettings()
   const { data: users = [] } = useUsers()
   const { toggle, showEveryone, isVisible, anyHidden } = usePersonFilter()
@@ -64,6 +74,19 @@ export function CalendarPage() {
           +
         </button>
       </header>
+
+      <div className="viewtabs">
+        {VIEW_TABS.map((t) => (
+          <button
+            key={t.kind}
+            className="viewtabs__tab"
+            aria-current={kind === t.kind ? 'page' : undefined}
+            onClick={() => navigate(`/calendar/${t.kind}`)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {users.length > 0 && (
         <div className="peoplefilter">

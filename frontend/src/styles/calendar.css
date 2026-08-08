@@ -1,11 +1,20 @@
+/* A column flex rather than a grid with hand-counted rows: the header strip above
+   the calendar is now three optional pieces (toolbar, view tabs, people chips) and
+   an explicit `auto auto 1fr` silently puts the body in the wrong row whenever one
+   of them isn't rendered. Here the body simply takes what is left, however many
+   headers there are. */
 .calpage {
   height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  /* Without an explicit 0-minimum column, the toolbar's min-content width would push the
-     whole page wider than a phone viewport. */
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  /* Without a 0 minimum the toolbar's min-content width pushes the whole page
+     wider than a phone viewport. */
+  min-width: 0;
+}
+
+.calpage > * {
+  min-width: 0;
 }
 
 .calpage__bar {
@@ -58,6 +67,8 @@
 }
 
 .calpage__body {
+  /* Takes whatever the headers above it leave. */
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   touch-action: pan-y;
@@ -77,7 +88,10 @@
 .timegrid__head,
 .timegrid__allday {
   display: grid;
-  grid-template-columns: var(--gutter) repeat(var(--days, 7), 1fr);
+  /* minmax(0, ...) not 1fr: a bare 1fr will not shrink below the column's
+     min-content, which pushed Friday and Saturday off a phone screen -- and with
+     them the toolbar buttons and the last nav item, since the whole shell grew. */
+  grid-template-columns: var(--gutter) repeat(var(--days, 7), minmax(0, 1fr));
   border-bottom: 1px solid var(--border);
 }
 
@@ -127,7 +141,7 @@
 
 .timegrid__body {
   display: grid;
-  grid-template-columns: var(--gutter) repeat(var(--days, 7), 1fr);
+  grid-template-columns: var(--gutter) repeat(var(--days, 7), minmax(0, 1fr));
   overflow-y: auto;
   min-height: 0;
   position: relative;
@@ -263,7 +277,7 @@
 
 .month__head {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   border-bottom: 1px solid var(--border);
 }
 
@@ -277,7 +291,7 @@
 
 .month__grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   min-height: 0;
 }
 
@@ -380,6 +394,9 @@
 .modal {
   position: fixed;
   inset: 0;
+  /* Sized to the visible area, not the layout viewport, or the keyboard covers the
+     card's buttons on a phone and there is no way to scroll to them. */
+  height: var(--app-height, 100%);
   background: rgba(0, 0, 0, 0.65);
   display: grid;
   place-items: center;
@@ -388,6 +405,10 @@
 }
 
 .modal__card {
+  /* With the keyboard up there may be very little room; the card scrolls rather
+     than overflowing off the top of the screen. */
+  max-height: 100%;
+  overflow-y: auto;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -611,4 +632,59 @@ a.btn {
 /* The calendar page grows a filter row between the toolbar and the grid. */
 .calpage[data-filtered='true'] {
   grid-template-rows: auto auto 1fr;
+}
+
+
+/* ---------------------- view switcher (phones only) ----------------------- */
+
+/* Above phone size the nav lists the four views, so this would be a duplicate. */
+.viewtabs {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .viewtabs {
+    display: flex;
+    gap: 4px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elev);
+  }
+
+  .viewtabs__tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 38px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text-dim);
+    font-size: var(--font-sm);
+    font-weight: 600;
+  }
+
+  .viewtabs__tab[aria-current='page'] {
+    background: var(--accent);
+    color: #06283a;
+  }
+
+  /* A phone has no room for a 52px time gutter beside seven day columns. */
+  .timegrid {
+    --gutter: 34px;
+  }
+
+  /* The toolbar's five controls have to survive 390px: the title gives up its
+     space first, and it already truncates. */
+  .calpage__bar {
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .calpage__title {
+    font-size: var(--font-md);
+  }
+
+  .iconbtn {
+    padding: 8px 10px;
+  }
 }

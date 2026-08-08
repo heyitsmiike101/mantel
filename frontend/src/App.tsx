@@ -1,17 +1,24 @@
 import { useEffect } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSettings } from './api/hooks'
 import { bookmarkLabel, safeBookmarkUrl } from './components/bookmark'
 import { Screensaver } from './components/Screensaver'
 import { VersionBadge } from './components/VersionBadge'
 import { useBurnInShift } from './hooks/useIdle'
 import { useOnline } from './hooks/useOnline'
+import { useViewportFit } from './hooks/useViewportFit'
 
-const NAV = [
+/** The four calendar views, each its own destination. A phone shows one entry for
+ *  all of them instead — seven items plus a version badge do not fit across 390px,
+ *  and the last one (Settings) was falling off the end. */
+const CALENDAR_VIEWS = [
   { to: '/calendar/today', icon: '📅', label: 'Today' },
   { to: '/calendar/3day', icon: '🗓️', label: '3 Day' },
   { to: '/calendar/week', icon: '📆', label: 'Week' },
   { to: '/calendar/month', icon: '🈷️', label: 'Month' },
+]
+
+const NAV = [
   { to: '/dashboard', icon: '🧩', label: 'Dashboard' },
   { to: '/lists', icon: '🛒', label: 'Lists' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
@@ -19,6 +26,11 @@ const NAV = [
 
 export function App() {
   const { data: settings } = useSettings()
+  const onCalendar = useLocation().pathname.startsWith('/calendar')
+
+  // Keeps the app the height of the space actually available, so a phone keyboard
+  // never covers the nav or a modal's Save button.
+  useViewportFit()
 
   const shift = useBurnInShift(settings?.burn_in_shift ?? false)
   const online = useOnline()
@@ -49,6 +61,33 @@ export function App() {
         <Outlet />
       </main>
       <nav className="shell__nav">
+        {/* One entry on a phone, four on anything larger. Both are rendered and the
+            stylesheet picks -- a JS breakpoint would disagree with the CSS one that
+            already decides whether this nav is a side rail or a bottom bar. */}
+        <NavLink
+          to="/calendar/today"
+          className="navbtn navbtn--calendar"
+          // Stays lit on every calendar view, not just Today, since it is now the
+          // way back to all four.
+          aria-current={onCalendar ? 'page' : undefined}
+        >
+          <span className="navbtn__icon" aria-hidden>
+            📅
+          </span>
+          <span>Calendar</span>
+        </NavLink>
+
+        <span className="navviews">
+          {CALENDAR_VIEWS.map((item) => (
+            <NavLink key={item.to} to={item.to} className="navbtn">
+              <span className="navbtn__icon" aria-hidden>
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </span>
+
         {NAV.map((item) => (
           <NavLink key={item.to} to={item.to} className="navbtn">
             <span className="navbtn__icon" aria-hidden>
