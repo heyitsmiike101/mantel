@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api/hooks'
 import type { CalendarEvent } from '../api/types'
-import { providerPossessive } from '../api/providers'
+import { calendarLabel, providerPossessive } from '../api/providers'
 import { pickableCalendars } from './pickableCalendars'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
 import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
@@ -142,8 +142,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
           >
             {choices.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
-                {c.account_email ? ` (${c.account_email})` : ''}
+                {calendarLabel(c)}
               </option>
             ))}
           </select>

@@ -22,3 +22,23 @@ export function providerPossessive(provider: string | null | undefined): string 
   if (provider === 'google') return 'Google'
   return 'the service it came from'
 }
+
+/** A calendar's name for a picker: "Family (Apple · you@example.com)".
+ *
+ *  The address alone is not enough to tell two calendars apart. An Apple ID is very
+ *  often a gmail address, so somebody who links both services ends up with two
+ *  accounts under an identical email -- and the new-event picker offered
+ *  "Family (you@gmail.com)" twice, with no way to know which service an event was
+ *  about to be saved to. On that screen, guessing wrong files the event somewhere
+ *  nobody is looking.
+ */
+export function calendarLabel(c: {
+  name: string
+  account_provider?: string | null
+  account_email?: string | null
+}): string {
+  if (!c.account_provider && !c.account_email) return c.name
+  const source = c.account_provider ? providerLabel(c.account_provider) : null
+  const parts = [source, c.account_email].filter(Boolean).join(' · ')
+  return `${c.name} (${parts})`
+}
