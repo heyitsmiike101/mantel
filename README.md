@@ -399,8 +399,8 @@ npm run dev
 npm test
 ```
 
-Contributions welcome. There's a backlog in [CHANGELOG.md](CHANGELOG.md) of what's deliberately
-not built yet — chores and rewards, meal planning, CalDAV, drag-to-move events.
+Contributions welcome. There's a [backlog](CHANGELOG.md#backlog) of what's deliberately not
+built yet — chores and rewards, meal planning, serving CalDAV, drag-to-move events.
 
 ## License
 

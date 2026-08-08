@@ -131,6 +131,9 @@ branch pushes. Open the PR to get a CI run.
 
 ## Known gaps
 
+Engineering constraints, as opposed to features nobody has written yet — those are in the
+[backlog](CHANGELOG.md#backlog).
+
 - **The CalDAV client has never met real iCloud.** It is written against RFC 4791/6578 and
   tested against a fake that reproduces the partition-host redirect, `403 valid-sync-token`, and
   a PUT with no ETag — but all of that is from the spec, not from observation. Treat a surprise

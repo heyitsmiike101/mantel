@@ -1,5 +1,31 @@
 # Changelog
 
+## Backlog
+
+Known gaps, deliberately not built yet. The README points here, so this is the list.
+
+**Tapping the all-day strip does nothing.** Every other empty space on a calendar starts an
+event at the time you tapped -- an hour slot in the time-grid views, anywhere in a day cell in
+month view. The all-day band across the top of a day column is the one part that doesn't, so
+creating an all-day event still means opening the picker and toggling "All day". The band only
+renders when a day already has an all-day event, so it isn't a dead zone people hit by
+accident; it's an inconsistency rather than a trap.
+
+**Editing one occurrence of a repeating series.** Changing a repeating event changes the whole
+series, on both Google and iCloud. Cancelling a single iCloud occurrence does work. The
+transport supports more than the UI exposes.
+
+**Changes made offline aren't queued.** The wall keeps showing the last known schedule, but an
+edit made while the network is down is lost.
+
+**Drag to move an event** between times or days.
+
+**Serving CalDAV.** Mantel is now a CalDAV *client* (that is how iCloud sync works), but it does
+not act as a CalDAV *server*. Phones subscribe by read-only `.ics` feed instead, which is why
+they cannot write back.
+
+**Chores and rewards**, and **meal planning** -- both frequently asked for, neither started.
+
 ## 0.4.0
 
 **iCloud calendars now sync, both ways, the same as Google.** Add an event on the wall
