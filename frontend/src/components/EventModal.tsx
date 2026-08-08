@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api/hooks'
 import type { CalendarEvent } from '../api/types'
+import { providerPossessive } from '../api/providers'
 import { pickableCalendars } from './pickableCalendars'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
 import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
@@ -23,7 +24,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
   const readOnly = event !== null && !event.editable
 
   // Only calendars that can actually carry an event -- see pickableCalendars for why a
-  // switched-off Google calendar would swallow one silently.
+  // switched-off synced calendar would swallow one silently.
   const writable = pickableCalendars(calendars)
   const choices = isNew ? writable : pickableCalendars(calendars, event.calendar_id)
 
@@ -105,7 +106,11 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
         <h2 className="modal__title">{isNew ? 'New event' : readOnly ? 'Event' : 'Edit event'}</h2>
 
         {readOnly && (
-          <p className="modal__note">This calendar is read-only in Google, so it can't be changed here.</p>
+          <p className="modal__note">
+            This calendar is read-only in{' '}
+            {providerPossessive(calendars.find((c) => c.id === event.calendar_id)?.account_provider)}
+            , so it can't be changed here.
+          </p>
         )}
 
         {event?.recurring && !event.recurrence_rule && (

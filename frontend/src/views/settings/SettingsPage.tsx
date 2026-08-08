@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
+import { providerLabel } from '../../api/providers'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { ApiTab } from './ApiTab'
@@ -171,9 +172,9 @@ function CalendarsTab() {
   const [found, setFound] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  // A calendar created or shared in Google after the account was linked only
-  // shows up once we re-read the list. Syncing does this on its own now; this is
-  // the "I just made one, show me" button.
+  // A calendar created or shared in Google or Apple Calendar after the account was
+  // linked only shows up once we re-read the list. Syncing does this on its own now;
+  // this is the "I just made one, show me" button. It covers both providers.
   const checkForNew = async () => {
     setChecking(true)
     setFound(null)
@@ -189,7 +190,9 @@ function CalendarsTab() {
             'Switch Syncing on for the ones you want.',
       )
     } catch (e) {
-      setFound(e instanceof Error ? e.message : 'Could not reach Google.')
+      // Discovery covers Google and iCloud together, so a generic fallback --
+      // naming one provider would be wrong half the time.
+      setFound(e instanceof Error ? e.message : 'Could not check for new calendars.')
     } finally {
       setChecking(false)
     }
@@ -214,16 +217,18 @@ function CalendarsTab() {
     <section className="panel">
       <h2>Calendars</h2>
       <p className="hint">
-        Claiming a calendar assigns it to a person and gives its events that person's colour.
-        <strong> Syncing</strong> decides whether a Google calendar appears at all — one that's
-        switched off shows no events and can't be picked when adding one.
+        Every calendar in the house, wherever it comes from — Google, Apple, or made here.
+        Claiming one assigns it to a person and gives its events that person's colour.
+        <strong> Syncing</strong> decides whether a connected calendar appears at all — one
+        that's switched off shows no events and can't be picked when adding one.
       </p>
 
       <div className="row">
         <div className="row__name row__name--static">
-          Added a calendar in Google?
+          Added a calendar in Google or Apple Calendar?
           <div className="hint">
-            Syncing checks for new ones automatically — this is the impatient button.
+            Syncing checks for new ones automatically — this is the impatient button. It
+            re-reads every connected account.
           </div>
         </div>
         <button className="btn" onClick={checkForNew} disabled={checking}>
@@ -269,7 +274,7 @@ function CalendarsTab() {
                 aria-current={c.sync_enabled ? 'page' : undefined}
                 title={
                   c.sync_enabled
-                    ? 'Syncing with Google. Switch off to hide it and stop syncing.'
+                    ? `Syncing with ${providerName(c)}. Switch off to hide it and stop syncing.`
                     : 'Not syncing. Its events are hidden and it cannot be picked for a new event.'
                 }
                 onClick={() => updateCal.mutate({ id: c.id, sync_enabled: !c.sync_enabled })}
@@ -435,9 +440,7 @@ function DisplayTab() {
 
 /** What the calendar row's hint calls the service a calendar came from. */
 function providerName(c: CalendarInfo): string {
-  if (c.account_provider === 'icloud') return 'Apple'
-  if (c.account_provider === 'google') return 'Google'
-  return 'Synced'
+  return providerLabel(c.account_provider)
 }
 
 /** Both services are optional and independent, so say which are actually set up
