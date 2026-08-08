@@ -4,16 +4,22 @@ import logging
 
 from ..config import get_settings
 from ..db import SessionLocal
-from . import google_sync
+from . import sync_engine
+from .pullsignal import register_pull_signal
 from .pushqueue import register_push_signal
 
 log = logging.getLogger(__name__)
 
 
-async def _pull_loop() -> None:
+async def _pull_loop(signal: asyncio.Event) -> None:
     interval = get_settings().sync_interval_seconds
     while True:
-        await asyncio.sleep(interval)
+        # Same shape as the push loop: the five-minute tick is the background
+        # cadence, and claiming a calendar wakes it early so somebody watching the
+        # screen sees that person's events appear instead of waiting out the timer.
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(signal.wait(), timeout=interval)
+        signal.clear()
         try:
             # Google's client is blocking, so it runs off the event loop.
             changed = await asyncio.to_thread(_pull_once)
@@ -41,21 +47,26 @@ async def _push_loop(signal: asyncio.Event) -> None:
 
 def _pull_once() -> int:
     with SessionLocal() as db:
-        return google_sync.pull_all(db)
+        return sync_engine.pull_all(db)
 
 
 def _push_once() -> int:
     with SessionLocal() as db:
-        return google_sync.push_pending(db)
+        return sync_engine.push_pending(db)
 
 
 def start(loop: asyncio.AbstractEventLoop) -> list[asyncio.Task]:
     if not get_settings().sync_enabled:
         log.info("Google sync is disabled (SYNC_ENABLED=false)")
         return []
-    signal = asyncio.Event()
-    register_push_signal(signal, loop)
-    return [asyncio.create_task(_pull_loop()), asyncio.create_task(_push_loop(signal))]
+    push_signal = asyncio.Event()
+    register_push_signal(push_signal, loop)
+    pull_signal = asyncio.Event()
+    register_pull_signal(pull_signal, loop)
+    return [
+        asyncio.create_task(_pull_loop(pull_signal)),
+        asyncio.create_task(_push_loop(push_signal)),
+    ]
 
 
 async def stop(tasks: list[asyncio.Task]) -> None:

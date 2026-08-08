@@ -281,6 +281,24 @@ code {
   white-space: nowrap;
 }
 
+/* Reports whether a calendar syncs; it follows the claim, so it is deliberately
+   not a button. Sized like one so the rows still line up. */
+.syncstate {
+  display: inline-grid;
+  place-items: center;
+  min-height: var(--touch);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+}
+
+.syncstate[data-on='true'] {
+  color: var(--accent);
+}
+
 .listcard__actions {
   display: flex;
   align-items: center;

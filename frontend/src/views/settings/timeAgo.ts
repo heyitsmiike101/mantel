@@ -1,5 +1,5 @@
 /** "synced 5 min ago" -- the only thing that makes a last-sync timestamp readable at a
- *  glance on a wall display. Shared by the Google and Calendars tabs.
+ *  glance on a wall display. Shared by the Google, Apple and Calendars tabs.
  *
  *  `now` is injectable so the tests don't depend on the wall clock. */
 export function timeAgo(iso: string, now: number = Date.now()): string {

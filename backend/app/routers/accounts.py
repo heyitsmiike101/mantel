@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import LinkedAccount, User
-from ..services import google_config, google_oauth, google_sync
+from ..services import google_config, google_oauth, icloud_auth, sync_engine
 from ..services.crypto import read_state, sign_state
 from ..services.google_api import GoogleApiError
+from ..services.providers.base import ProviderAuthError, ProviderError
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -34,11 +35,20 @@ class AuthUrlOut(BaseModel):
     url: str
 
 
+class ICloudLinkIn(BaseModel):
+    user_id: int
+    apple_id: str
+    app_password: str
+
+
 @router.get(
     "",
     response_model=list[AccountOut],
-    summary="List linked Google accounts",
-    description="Tokens are never returned. `status` is 'active' or 'needs_reauth'.",
+    summary="List linked calendar accounts",
+    description=(
+        "Both Google and iCloud accounts, distinguished by `provider`. Credentials "
+        "are never returned. `status` is 'active' or 'needs_reauth'."
+    ),
 )
 def list_accounts(db: Session = Depends(get_db)) -> list[LinkedAccount]:
     return list(db.scalars(select(LinkedAccount).order_by(LinkedAccount.email)))
@@ -117,7 +127,7 @@ def google_callback(
     db.commit()
 
     try:
-        google_sync.discover_calendars(db, account)
+        sync_engine.discover_calendars(db, account)
     except GoogleApiError as exc:
         # The account is linked and the token is stored; only the first calendar
         # listing failed. Record why and send the person somewhere that explains
@@ -130,19 +140,83 @@ def google_callback(
     return RedirectResponse(f"/settings?tab=google&linked={email}")
 
 
+@router.post(
+    "/icloud",
+    response_model=AccountOut,
+    status_code=201,
+    summary="Link an iCloud account",
+    description=(
+        "Apple has no OAuth for calendars, so this is a form rather than a consent "
+        "screen: an Apple ID and an app-specific password generated at "
+        "appleid.apple.com. The password is checked against iCloud before anything "
+        "is saved, and stored encrypted. Calendars arrive with syncing switched off."
+    ),
+)
+def link_icloud(payload: ICloudLinkIn, db: Session = Depends(get_db)) -> LinkedAccount:
+    user = db.get(User, payload.user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
+
+    apple_id = payload.apple_id.strip().lower()
+    # Apple presents the password in groups separated by dashes and people paste it
+    # that way, sometimes with a stray space. The dashes are part of it; spaces are not.
+    password = "".join(payload.app_password.split())
+    if not apple_id or not password:
+        raise HTTPException(400, "Both the Apple ID and an app-specific password are needed")
+
+    account = db.scalar(
+        select(LinkedAccount).where(
+            LinkedAccount.provider == "icloud", LinkedAccount.email == apple_id
+        )
+    )
+    if account is None:
+        account = LinkedAccount(user_id=user.id, provider="icloud", email=apple_id)
+        db.add(account)
+        db.flush()
+    else:
+        account.user_id = user.id
+
+    try:
+        icloud_auth.verify_and_store(db, account, password)
+    except ProviderAuthError as exc:
+        # Nothing has been written, so a wrong password leaves no trace of a
+        # half-linked account behind.
+        db.rollback()
+        raise HTTPException(400, str(exc)) from exc
+    except ProviderError as exc:
+        db.rollback()
+        raise HTTPException(502, f"Could not reach iCloud: {exc.message}") from exc
+
+    try:
+        sync_engine.discover_calendars(db, account)
+    except (ProviderError, ProviderAuthError) as exc:
+        # The account is linked and the password is stored; only the first calendar
+        # listing failed. Record why rather than returning a 500 that reads like the
+        # app is broken -- the Calendars page will fill in on the next sync.
+        account.status = "needs_reauth"
+        account.last_error = f"Could not list calendars: {exc}"[:500]
+        db.commit()
+
+    return account
+
+
 @router.delete(
     "/{account_id}",
     status_code=204,
-    summary="Unlink a Google account",
+    summary="Unlink a calendar account",
     description=(
-        "Revokes the token with Google and removes the account's calendars and their "
-        "events from this app. Nothing is deleted from Google Calendar itself."
+        "Removes the account's calendars and their events from this app. Nothing is "
+        "deleted from Google Calendar or iCloud itself.\n\n"
+        "A Google token is revoked on the way out. An iCloud app-specific password "
+        "cannot be revoked over CalDAV -- delete it at appleid.apple.com if you want "
+        "it gone for good."
     ),
 )
 def unlink_account(account_id: int, db: Session = Depends(get_db)) -> None:
     account = db.get(LinkedAccount, account_id)
     if account is None:
         raise HTTPException(404, "Account not found")
-    google_oauth.revoke(account)
+    if account.provider == "google":
+        google_oauth.revoke(account)
     db.delete(account)
     db.commit()

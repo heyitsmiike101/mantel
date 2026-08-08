@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
+import { providerLabel } from '../../api/providers'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { ApiTab } from './ApiTab'
 import { GoogleTab } from './GoogleTab'
+import { ICloudTab } from './ICloudTab'
 import { ScreenTab } from './ScreenTab'
 import { SharingTab } from './SharingTab'
 import { WeatherTab } from './WeatherTab'
@@ -14,6 +16,7 @@ import { timeAgo } from './timeAgo'
 const TABS = [
   'people',
   'google',
+  'icloud',
   'calendars',
   'display',
   'screen',
@@ -27,6 +30,7 @@ type Tab = (typeof TABS)[number]
 const TAB_LABELS: Record<Tab, string> = {
   people: 'Family',
   google: 'Google',
+  icloud: 'Apple',
   calendars: 'Calendars',
   display: 'Display',
   screen: 'Screen',
@@ -57,6 +61,7 @@ export function SettingsPage() {
       <div className="settings__body">
         {tab === 'people' && <PeopleTab />}
         {tab === 'google' && <GoogleTab />}
+        {tab === 'icloud' && <ICloudTab />}
         {tab === 'calendars' && <CalendarsTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'screen' && <ScreenTab />}
@@ -167,9 +172,9 @@ function CalendarsTab() {
   const [found, setFound] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  // A calendar created or shared in Google after the account was linked only
-  // shows up once we re-read the list. Syncing does this on its own now; this is
-  // the "I just made one, show me" button.
+  // A calendar created or shared in Google or Apple Calendar after the account was
+  // linked only shows up once we re-read the list. Syncing does this on its own now;
+  // this is the "I just made one, show me" button. It covers both providers.
   const checkForNew = async () => {
     setChecking(true)
     setFound(null)
@@ -185,7 +190,9 @@ function CalendarsTab() {
             'Switch Syncing on for the ones you want.',
       )
     } catch (e) {
-      setFound(e instanceof Error ? e.message : 'Could not reach Google.')
+      // Discovery covers Google and iCloud together, so a generic fallback --
+      // naming one provider would be wrong half the time.
+      setFound(e instanceof Error ? e.message : 'Could not check for new calendars.')
     } finally {
       setChecking(false)
     }
@@ -210,16 +217,18 @@ function CalendarsTab() {
     <section className="panel">
       <h2>Calendars</h2>
       <p className="hint">
-        Claiming a calendar assigns it to a person and gives its events that person's colour.
-        <strong> Syncing</strong> decides whether a Google calendar appears at all — one that's
-        switched off shows no events and can't be picked when adding one.
+        Every calendar in the house, wherever it comes from — Google, Apple, or made here.
+        <strong> Assign a calendar to somebody</strong> and it starts syncing straight away,
+        with its events in that person's colour. Set it back to Unclaimed and it stops
+        syncing and disappears from the wall.
       </p>
 
       <div className="row">
         <div className="row__name row__name--static">
-          Added a calendar in Google?
+          Added a calendar in Google or Apple Calendar?
           <div className="hint">
-            Syncing checks for new ones automatically — this is the impatient button.
+            Syncing checks for new ones automatically — this is the impatient button. It
+            re-reads every connected account.
           </div>
         </div>
         <button className="btn" onClick={checkForNew} disabled={checking}>
@@ -236,7 +245,7 @@ function CalendarsTab() {
             <div className="row__name row__name--static">
               <div>{c.name}</div>
               <div className="hint">
-                {c.is_local ? 'Local calendar' : `Google · ${c.account_email ?? ''}`}
+                {c.is_local ? 'Local calendar' : `${providerName(c)} · ${c.account_email ?? ''}`}
                 {!c.writable && ' · read-only'}
                 {sync?.last_synced_at && ` · synced ${timeAgo(sync.last_synced_at)}`}
                 {sync?.sync_error && ` · ${sync.sync_error.slice(0, 70)}`}
@@ -258,20 +267,21 @@ function CalendarsTab() {
                 </option>
               ))}
             </select>
-            {/* Local calendars are always on -- there is nothing to sync them with. */}
+            {/* Not a switch: syncing follows the claim. Assigning somebody a calendar
+                and wanting it to sync are the same wish, so this reports rather than
+                asks. Local calendars have nothing to sync with, so they say nothing. */}
             {!c.is_local && (
-              <button
-                className="btn"
-                aria-current={c.sync_enabled ? 'page' : undefined}
+              <span
+                className="syncstate"
+                data-on={c.sync_enabled}
                 title={
                   c.sync_enabled
-                    ? 'Syncing with Google. Switch off to hide it and stop syncing.'
-                    : 'Not syncing. Its events are hidden and it cannot be picked for a new event.'
+                    ? `Syncing with ${providerName(c)} because it belongs to somebody.`
+                    : 'Assign this calendar to somebody and it will start syncing.'
                 }
-                onClick={() => updateCal.mutate({ id: c.id, sync_enabled: !c.sync_enabled })}
               >
-                {c.sync_enabled ? 'Syncing' : 'Off'}
-              </button>
+                {c.sync_enabled ? 'Syncing' : 'Not synced'}
+              </span>
             )}
             {c.is_local && (
               <button className="btn btn--danger" onClick={() => deleteCal.mutate(c.id)}>
@@ -423,13 +433,26 @@ function DisplayTab() {
       </div>
 
       <p className="hint">
-        Server version {settings.server.version} ·{' '}
-        {settings.server.google_configured
-          ? 'Google sync configured'
-          : 'Google sync not configured'}
+        Server version {settings.server.version} · {syncSummary(settings.server)}
       </p>
     </section>
   )
+}
+
+/** What the calendar row's hint calls the service a calendar came from. */
+function providerName(c: CalendarInfo): string {
+  return providerLabel(c.account_provider)
+}
+
+/** Both services are optional and independent, so say which are actually set up
+ *  rather than reporting "not configured" on an install that syncs happily with
+ *  the other one. */
+function syncSummary(server: AppSettings['server']): string {
+  const ready = [
+    server.google_configured ? 'Google' : null,
+    server.icloud_linked ? 'Apple' : null,
+  ].filter(Boolean)
+  return ready.length ? `${ready.join(' and ')} sync configured` : 'No calendar sync configured'
 }
 
 function hours(): number[] {

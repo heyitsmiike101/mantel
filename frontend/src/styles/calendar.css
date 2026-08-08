@@ -289,6 +289,34 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr;
+  /* Anchors the full-cell add button below. */
+  position: relative;
+}
+
+/* Fills the cell so tapping anywhere empty starts a new event, and sits under the
+   day number and the event chips so those keep their own taps. Same arrangement as
+   .timegrid__slot beneath .event-block. */
+.month__addlayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 0;
+}
+
+.month__addlayer:active {
+  background: rgba(56, 189, 248, 0.15);
+}
+
+/* It covers the whole cell, so the default outline would be drawn under the day
+   number and the chips. Inset it so keyboard focus is actually visible. */
+.month__addlayer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.month__cell > :not(.month__addlayer) {
+  position: relative;
+  z-index: 1;
 }
 
 .month__cell[data-outside='true'] {
@@ -307,6 +335,12 @@
   color: var(--text-dim);
   min-height: 30px;
   min-width: 30px;
+  /* No longer a button; keep it looking and sitting exactly as it did. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Let taps fall through to the add layer underneath. */
+  pointer-events: none;
 }
 
 .month__cell[data-today='true'] .month__daynum {
@@ -320,6 +354,14 @@
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
+  /* The column stretches to fill the cell whether or not there are any events in
+     it, so it would otherwise swallow every tap on the empty space below the last
+     chip. The chips take their taps back individually. */
+  pointer-events: none;
+}
+
+.month__events > * {
+  pointer-events: auto;
 }
 
 .chip--month {

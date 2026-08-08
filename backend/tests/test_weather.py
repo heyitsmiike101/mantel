@@ -367,6 +367,112 @@ def test_place_search_handles_no_matches(client, db, monkeypatch):
     assert client.get("/api/weather/search", params={"q": "zzzzz"}).json() == []
 
 
+# --------------------------------- postcodes ---------------------------------
+
+ZIPPO_33556 = json.dumps(
+    {
+        "post code": "33556",
+        "country": "United States",
+        "country abbreviation": "US",
+        "places": [
+            {
+                "place name": "Odessa",
+                "longitude": "-82.5915",
+                "state": "Florida",
+                "state abbreviation": "FL",
+                "latitude": "28.1922",
+            }
+        ],
+    }
+)
+
+
+def test_a_us_zip_resolves_to_the_right_town(client, db, monkeypatch):
+    """The bug: Open-Meteo's geocoder matches place *names*, so searching a ZIP
+    returned a confidently wrong town on another continent -- 33556 gave Cangas de
+    Onis, Spain. A postcode now goes to a postcode service instead."""
+    seen = {}
+
+    def fetch(session, key, url, ttl_s, params=None):
+        seen["url"] = url
+        return ZIPPO_33556, False
+
+    monkeypatch.setattr(weather_service, "fetch", fetch)
+    results = client.get("/api/weather/search", params={"q": "33556"}).json()
+
+    assert "zippopotam" in seen["url"], "a ZIP must not be sent to the name geocoder"
+    assert results[0]["latitude"] == 28.1922
+    assert results[0]["longitude"] == -82.5915
+    # The code is in the label so it is obvious the right one came back.
+    assert results[0]["label"] == "Odessa 33556, Florida, United States"
+
+
+def test_zip_plus_four_and_surrounding_space(client, db, monkeypatch):
+    calls = []
+
+    def fetch(session, key, url, ttl_s, params=None):
+        calls.append(url)
+        return ZIPPO_33556, False
+
+    monkeypatch.setattr(weather_service, "fetch", fetch)
+    for q in ("33556-1234", "  33556  "):
+        assert client.get("/api/weather/search", params={"q": q}).json()[0]["name"] == "Odessa"
+    assert all(u.endswith("/us/33556") for u in calls), calls
+
+
+def test_a_postcode_can_name_its_country(client, db, monkeypatch):
+    # Collect every URL: an empty postcode result correctly falls through to the
+    # name geocoder, so only checking the last one would test the fallback instead.
+    urls = []
+
+    def fetch(session, key, url, ttl_s, params=None):
+        urls.append(url)
+        return '{"places": []}', False
+
+    monkeypatch.setattr(weather_service, "fetch", fetch)
+    client.get("/api/weather/search", params={"q": "33556, ca"})
+    assert any("/ca/33556" in u for u in urls), urls
+    assert not any("/us/33556" in u for u in urls), "the country override was ignored"
+
+
+def test_a_town_still_goes_to_the_name_geocoder(client, db, monkeypatch):
+    seen = {}
+
+    def fetch(session, key, url, ttl_s, params=None):
+        seen["url"] = url
+        return json.dumps({"results": []}), False
+
+    monkeypatch.setattr(weather_service, "fetch", fetch)
+    client.get("/api/weather/search", params={"q": "Odessa, FL"})
+    assert "open-meteo" in seen["url"]
+
+
+def test_an_unknown_postcode_falls_back_to_a_name_search(client, db, monkeypatch):
+    """A five-digit string the postcode service doesn't know might still be a place
+    name, so returning nothing would be worse than asking the other service."""
+    urls = []
+
+    def fetch(session, key, url, ttl_s, params=None):
+        urls.append(url)
+        if "zippopotam" in url:
+            return None, True
+        return json.dumps(
+            {"results": [{"name": "99999", "latitude": 1.0, "longitude": 2.0}]}
+        ), False
+
+    monkeypatch.setattr(weather_service, "fetch", fetch)
+    results = client.get("/api/weather/search", params={"q": "99999"}).json()
+    assert any("zippopotam" in u for u in urls) and any("open-meteo" in u for u in urls)
+    assert results[0]["latitude"] == 1.0
+
+
+def test_a_broken_postcode_response_never_raises(client, db, monkeypatch):
+    for body in ("not json", '{"places": [{"latitude": "north"}]}', '{"places": null}'):
+        # Bound as a default: a late-binding closure would test the last body three times.
+        monkeypatch.setattr(weather_service, "fetch", lambda *a, _b=body, **k: (_b, False))
+        assert client.get("/api/weather/search", params={"q": "33556"}).status_code == 200
+
+
 # ------------------------- today's high carry-forward ------------------------
 
 
