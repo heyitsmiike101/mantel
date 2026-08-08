@@ -17,6 +17,15 @@
   min-width: 0;
 }
 
+/* The strip above the grid must keep its natural height. As flex children these
+   default to flex-shrink: 1, and when the grid wants room they get squeezed --
+   which chopped the bottom off the people chips rather than shortening the grid. */
+.calpage__bar,
+.viewtabs,
+.peoplefilter {
+  flex: 0 0 auto;
+}
+
 .calpage__bar {
   display: flex;
   align-items: center;
@@ -643,29 +652,35 @@ a.btn {
 }
 
 @media (max-width: 640px) {
+  /* One segmented control rather than four separate buttons: a single track with
+     dividers reads as "pick one of these", which four floating pills did not. */
   .viewtabs {
     display: flex;
-    gap: 4px;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elev);
+    gap: 2px;
+    margin: 8px 10px 0;
+    padding: 3px;
+    border-radius: 12px;
+    background: var(--bg-elev-2);
   }
 
   .viewtabs__tab {
     flex: 1 1 0;
     min-width: 0;
-    min-height: 38px;
+    min-height: 36px;
     padding: 6px 4px;
-    border-radius: 10px;
-    background: var(--bg);
+    border-radius: 9px;
+    background: transparent;
     color: var(--text-dim);
     font-size: var(--font-sm);
     font-weight: 600;
+    white-space: nowrap;
+    transition: background 120ms ease, color 120ms ease;
   }
 
   .viewtabs__tab[aria-current='page'] {
-    background: var(--accent);
-    color: #06283a;
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   }
 
   /* A phone has no room for a 52px time gutter beside seven day columns. */
@@ -677,14 +692,28 @@ a.btn {
      space first, and it already truncates. */
   .calpage__bar {
     gap: 4px;
-    padding: 6px 8px;
+    padding: 8px 10px 4px;
+    border-bottom: none;
   }
 
   .calpage__title {
     font-size: var(--font-md);
+    font-weight: 700;
   }
 
-  .iconbtn {
+  /* Fixed-size controls; the title truncates instead of pushing them off. */
+  .calpage__bar .iconbtn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+  }
+
+  .peoplefilter {
     padding: 8px 10px;
+    border-bottom: none;
+  }
+
+  /* The grid is the content -- give it the only hard edge on the screen. */
+  .calpage__body {
+    border-top: 1px solid var(--border);
   }
 }

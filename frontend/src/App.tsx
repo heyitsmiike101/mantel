@@ -12,16 +12,16 @@ import { useViewportFit } from './hooks/useViewportFit'
  *  all of them instead — seven items plus a version badge do not fit across 390px,
  *  and the last one (Settings) was falling off the end. */
 const CALENDAR_VIEWS = [
-  { to: '/calendar/today', icon: '📅', label: 'Today' },
-  { to: '/calendar/3day', icon: '🗓️', label: '3 Day' },
-  { to: '/calendar/week', icon: '📆', label: 'Week' },
-  { to: '/calendar/month', icon: '🈷️', label: 'Month' },
+  { to: '/calendar/today', label: 'Today' },
+  { to: '/calendar/3day', label: '3 Day' },
+  { to: '/calendar/week', label: 'Week' },
+  { to: '/calendar/month', label: 'Month' },
 ]
 
 const NAV = [
-  { to: '/dashboard', icon: '🧩', label: 'Dashboard' },
-  { to: '/lists', icon: '🛒', label: 'Lists' },
-  { to: '/settings', icon: '⚙️', label: 'Settings' },
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/lists', label: 'Lists' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 export function App() {
@@ -71,18 +71,12 @@ export function App() {
           // way back to all four.
           aria-current={onCalendar ? 'page' : undefined}
         >
-          <span className="navbtn__icon" aria-hidden>
-            📅
-          </span>
           <span>Calendar</span>
         </NavLink>
 
         <span className="navviews">
           {CALENDAR_VIEWS.map((item) => (
             <NavLink key={item.to} to={item.to} className="navbtn">
-              <span className="navbtn__icon" aria-hidden>
-                {item.icon}
-              </span>
               <span>{item.label}</span>
             </NavLink>
           ))}
@@ -90,9 +84,6 @@ export function App() {
 
         {NAV.map((item) => (
           <NavLink key={item.to} to={item.to} className="navbtn">
-            <span className="navbtn__icon" aria-hidden>
-              {item.icon}
-            </span>
             <span>{item.label}</span>
           </NavLink>
         ))}

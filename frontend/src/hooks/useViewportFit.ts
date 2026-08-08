@@ -46,6 +46,12 @@ export function useViewportFit(): void {
 
       if (keyboardIsUp(window.innerHeight, height)) {
         document.documentElement.style.setProperty('--app-height', `${height}px`)
+        // Height alone is not enough. iOS scrolls the *layout* viewport to reveal the
+        // focused field, so the visible area starts partway down the page: a shell
+        // pinned to the layout viewport's origin then has its top scrolled out of
+        // sight and its bottom cut off by the keyboard. offsetTop is how far the
+        // visible area has moved, and putting the shell there realigns the two.
+        document.documentElement.style.setProperty('--app-offset', `${vv?.offsetTop ?? 0}px`)
       } else {
         // Nothing is covering the screen, so hand the height back to CSS rather than
         // pinning a pixel value. A stale pinned value is the worst outcome available
@@ -53,6 +59,7 @@ export function useViewportFit(): void {
         // an event -- and this way a missed event costs nothing, because `100%` is
         // already correct whenever the keyboard is down.
         document.documentElement.style.removeProperty('--app-height')
+        document.documentElement.style.removeProperty('--app-offset')
       }
 
       if (shouldSnapBack(previous, height)) {
