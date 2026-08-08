@@ -12,7 +12,7 @@ You are talking to a self-hosted family calendar that runs on a home network.
 **Users** are family members; each has a name and a color. A user links one or more Google
 **accounts**. Each account exposes **calendars**, which a user *claims* — claiming is what makes
 a calendar visible and gives its events that person's color. **Events** live on a calendar. Events
-on Google-backed calendars sync both ways automatically; events on local calendars stay in
+on Google- and iCloud-backed calendars sync both ways automatically; events on local calendars stay in
 this app. There is also a **dashboard** of widgets for the wall display.
 
 ## Conventions
@@ -85,7 +85,7 @@ Content-Type: application/json
 ```
 
 Returns `201` with the created event. If the calendar is Google-backed the response has
-`"sync_state": "pending_create"` — the event is already saved and will reach Google within
+`"sync_state": "pending_create"` — the event is already saved and will reach Google or iCloud within
 seconds. Do not poll or retry.
 
 ### 4. Move or rename an event
@@ -174,7 +174,7 @@ new `position`.
 | --------- | ----------------------------------------------------------------------------- |
 | Meta      | `GET /api/version`, `/api/health`, `/api/ai-guide`                            |
 | Users     | `GET/POST /api/users`, `GET/PATCH/DELETE /api/users/{id}`                     |
-| Accounts  | `GET /api/accounts`, `GET /api/accounts/google/auth-url?user_id=`, `DELETE /api/accounts/{id}` |
+| Accounts  | `GET /api/accounts`, `GET /api/accounts/google/auth-url?user_id=`, `POST /api/accounts/icloud`, `DELETE /api/accounts/{id}` |
 | Calendars | `GET/POST /api/calendars`, `GET/PATCH/DELETE /api/calendars/{id}`             |
 | Events    | `GET/POST /api/events`, `GET/PATCH/DELETE /api/events/{id}`                   |
 | Dashboard | `GET /api/dashboard/widget-types`, `GET/POST /api/dashboard/widgets`, `PATCH/DELETE /api/dashboard/widgets/{id}` |

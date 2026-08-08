@@ -5,7 +5,8 @@
 ### The open-source family calendar for your kitchen wall
 
 **A self-hosted digital family calendar and command centre that runs on your own hardware.**
-Real two-way Google Calendar sync, a touchscreen-first interface for a wall-mounted display,
+Real two-way Google Calendar and iCloud sync, a touchscreen-first interface for a wall-mounted
+display,
 shared grocery lists, weather, and a customisable dashboard — in one Docker container, with no
 account, no subscription and no cloud.
 
@@ -32,18 +33,22 @@ Google already knows, but you can't add Tuesday's dentist appointment from the w
 Mantel is the other thing. It is a calendar you **write to** from the wall, and everything you
 write reaches everyone's phone.
 
-**Two-way Google Calendar sync is the part that's rare.** Add an event on the kitchen display
-and it appears in Google within seconds; change it on your phone and it's on the wall at the
-next sync. Nextcloud can't do this at all — Google requires OAuth, which Nextcloud's calendar
-subscriptions don't support. Home Assistant's CalDAV integration can only create events, never
-edit or delete them. Mantel does the full round trip, including deletes and repeating events.
+**Two-way sync is the part that's rare**, and it works with **Google Calendar and iCloud**.
+Add an event on the kitchen display and it appears on everyone's phones within seconds; change
+it on a phone and it's on the wall at the next sync. Nextcloud can't do this at all — Google
+requires OAuth, which Nextcloud's calendar subscriptions don't support. Home Assistant's CalDAV
+integration can only create events, never edit or delete them. Mantel does the full round trip
+for both services, including deletes and repeating events.
+
+Mix them freely: the Google half of the family links Google accounts, the Apple half links Apple
+IDs, and everyone's calendars sit side by side on the same wall.
 
 ## What you get
 
 |                            |                                                                                        |
 | -------------------------- | -------------------------------------------------------------------------------------- |
 | 📅 **Four views**           | Today, 3-day, week and month — touch-first, portrait *and* landscape                     |
-| 🎨 **A colour per person**  | Everyone links as many Google accounts as they like and claims the calendars they own    |
+| 🎨 **A colour per person**  | Everyone links as many Google or Apple accounts as they like and claims the ones they own |
 | 🔁 **Repeating events**     | Daily, weekly on chosen days, monthly, yearly — created on the wall, pushed as RRULEs    |
 | 👤 **Filter by person**     | Tap a family member to grey them out; remembered per device                              |
 | 🧩 **Dashboard wall**       | Build a screen from widgets: agenda, weather, lists, countdowns, clock, mini month       |
@@ -72,7 +77,7 @@ cp .env.example .env
 Open <http://localhost:8080>.
 
 That's a working family calendar already — a local "Family" calendar, four views, lists and a
-dashboard. **Google is optional** and can wait until you feel like it.
+dashboard. **Calendar sync is optional** and can wait until you feel like it.
 
 To reach it from the other screens in the house, use the machine's LAN address instead, e.g.
 `http://192.168.1.50:8080`.
@@ -86,8 +91,9 @@ docker run -d --name mantel -p 8080:8080 \
   ghcr.io/heyitsmiike101/mantel:latest
 ```
 
-> **Before you connect anyone's Google account**, put a real `SECRET_KEY` in `.env`. It's the
-> key your Google credentials and everyone's tokens are encrypted with. The command to generate
+> **Before you connect anyone's account**, put a real `SECRET_KEY` in `.env`. It's the
+> key your Google credentials, everyone's tokens and every iCloud app-specific password are
+> encrypted with. The command to generate
 > one is in the file.
 
 ---
@@ -108,7 +114,7 @@ Tap the **+** in the top right, or tap any empty slot in the grid to start an ev
 - **All day** — flip the toggle; it renders as a banner across the top of the day
 - **Repeats** — Never / Daily / Weekly on chosen days / Monthly / Yearly, with an optional end
   date. A repeating event is stored once and expanded for whatever range you're looking at.
-- **Which calendar** — decides whose colour it gets, and whether it syncs to Google
+- **Which calendar** — decides whose colour it gets, and whether it syncs to Google or iCloud
 
 Editing a repeating event changes the whole series.
 
@@ -129,7 +135,11 @@ phone shows only yours. Someone added to the family later shows up straight away
 arriving hidden, and events on a calendar nobody has claimed always stay visible — they belong
 to the household.
 
-### 4. Connect Google Calendar
+### 4. Connect a calendar
+
+Two services, both optional and independent. Connect either, both, or neither.
+
+#### Google Calendar
 
 ![The Google setup walkthrough in Settings](docs/screenshots/settings-google.png)
 
@@ -158,6 +168,26 @@ ahead.
 > ⚠️ **Don't skip "Publish app"** in the Google Cloud console. An OAuth app left in *Testing*
 > mode expires every family member's connection after 7 days. Publishing doesn't submit your app
 > for review — it's step 4 of the in-app walkthrough, with an explanation.
+
+#### iCloud
+
+**Settings → Apple.** Much shorter, because there is **nothing to set up for the household** —
+no developer account, no client ID or secret, no redirect URI, and none of the LAN-address
+trouble above.
+
+Apple has no OAuth for calendars, so each person makes an **app-specific password** at
+[appleid.apple.com](https://appleid.apple.com) (Sign-In and Security → App-Specific Passwords)
+and pastes it in with their Apple ID. It takes about a minute. The password is checked against
+iCloud before anything is saved, so a typo tells you straight away instead of turning into a
+sync that quietly never works, and it's stored encrypted.
+
+Their calendars show up under **Settings → Calendars**, switched off, exactly like Google ones.
+Longer version: [docs/setup-icloud.md](docs/setup-icloud.md).
+
+> ℹ️ **An app-specific password isn't your Apple ID password.** It works only for this app and
+> you can cancel it on its own at any time. Note that Apple cancels *all* of them whenever you
+> change your real Apple ID password — the account will ask to be connected again, which is
+> expected rather than a fault.
 
 ### 5. Build the dashboard
 
@@ -268,7 +298,7 @@ restart containers to finish setting this up.
 | Variable     | Default              | What it does                                            |
 | ------------ | -------------------- | ------------------------------------------------------- |
 | `PORT`       | `8080`               | Port the app is served on                               |
-| `SECRET_KEY` | *(insecure default)* | Encrypts your Google credentials and tokens — set yours |
+| `SECRET_KEY` | *(insecure default)* | Encrypts your Google credentials, tokens and iCloud passwords — set yours |
 
 Optional tuning (sync intervals, database URL, CORS) is there too with sensible defaults, and
 every option is documented in **[docs/configuration.md](docs/configuration.md)**.
@@ -328,7 +358,9 @@ heavier, point `DATABASE_URL` at Postgres — no code changes needed.
 ## FAQ
 
 **Do I need a Google account?**
-No. Everything except Google sync works with no external account at all — including weather,
+No — and if you're an Apple household you can skip Google entirely and connect iCloud instead,
+which takes about a minute per person and needs no developer account. Everything except calendar
+sync works with no external account at all — including weather,
 which needs no API key.
 
 **Does it work on a phone?**
@@ -347,7 +379,7 @@ Sure. It's a perfectly good family calendar in a browser tab. The wall is just w
 
 **How is this different from DAKboard or MagicMirror?**
 Those are display frameworks — they render information beautifully but are read-only. Mantel is a
-calendar you write to, with Google sync in both directions.
+calendar you write to, with Google and iCloud sync in both directions.
 
 ## Development
 

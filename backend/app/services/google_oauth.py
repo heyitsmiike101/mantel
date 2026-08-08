@@ -7,6 +7,7 @@ from ..models import LinkedAccount
 from ..timeutil import utcnow_naive
 from .crypto import decrypt, encrypt
 from .google_config import GoogleConfig, load
+from .providers.base import ProviderAuthError
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -19,7 +20,7 @@ SCOPES = [
 ]
 
 
-class GoogleAuthError(Exception):
+class GoogleAuthError(ProviderAuthError):
     """Raised when Google refuses the stored credentials and the user must re-link."""
 
 

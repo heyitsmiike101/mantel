@@ -2,38 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { useEntityMutation, useSettings, useUsers } from '../../api/hooks'
-import type { AppSettings } from '../../api/types'
+import type { AppSettings, LinkedAccount, SyncStatus } from '../../api/types'
 import { googleRedirectProblem, localhostAlternative, tunnelCommand } from './googleRedirect'
-
-interface LinkedAccount {
-  id: number
-  user_id: number
-  provider: string
-  email: string
-  status: string
-  last_error: string | null
-}
-
-interface SyncStatus {
-  google_configured: boolean
-  sync_enabled: boolean
-  interval_seconds: number
-  accounts_needing_reauth: string[]
-  pending_pushes: number
-  calendars: {
-    calendar_id: number
-    name: string
-    account_email: string | null
-    sync_enabled: boolean
-    last_synced_at: string | null
-    sync_error: string | null
-  }[]
-}
 
 export function GoogleTab() {
   const { data: settings } = useSettings()
   const { data: users = [] } = useUsers()
-  const { data: accounts = [], refetch: refetchAccounts } = useQuery({
+  const { data: allAccounts = [], refetch: refetchAccounts } = useQuery({
     queryKey: ['accounts'],
     queryFn: () => api.get<LinkedAccount[]>('/accounts'),
   })
@@ -61,6 +36,13 @@ export function GoogleTab() {
     (id: number) => api.del<void>(`/accounts/${id}`),
     ['accounts', 'calendars', 'events', 'sync-status'],
   )
+
+  const accounts = allAccounts.filter((a) => a.provider === 'google')
+  // The status list covers every provider; an Apple ID that needs reconnecting is
+  // the Apple tab's problem, and the Google advice below would be wrong for it.
+  const staleGoogle = accounts
+    .filter((a) => (status?.accounts_needing_reauth ?? []).includes(a.email))
+    .map((a) => a.email)
 
   if (!settings) return null
 
@@ -210,9 +192,9 @@ export function GoogleTab() {
         </p>
       )}
 
-      {status && status.accounts_needing_reauth.length > 0 && (
+      {staleGoogle.length > 0 && (
         <p className="banner banner--warn">
-          These need connecting again: {status.accounts_needing_reauth.join(', ')}.
+          These need connecting again: {staleGoogle.join(', ')}.
           <br />
           If this keeps happening about once a week, your Google app is still in{' '}
           <strong>Testing</strong> mode, which expires connections after 7 days. Open{' '}

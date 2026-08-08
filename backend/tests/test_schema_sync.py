@@ -85,6 +85,51 @@ def test_existing_rows_get_the_column_default(fresh_schema):
     assert value == 0, "pre-existing rows must not be left NULL for a filtered column"
 
 
+def test_adds_the_icloud_columns(fresh_schema):
+    """The iCloud release adds three nullable columns to two tables. All three have
+    to arrive on an existing install, or linking an Apple account writes to a column
+    that isn't there."""
+    with engine.begin() as conn:
+        drop_column(conn, "linked_accounts", "password_enc")
+        drop_column(conn, "linked_accounts", "calendar_home_url")
+        drop_column(conn, "events", "exdates")
+
+    applied = sync(engine)
+
+    assert "linked_accounts.password_enc" in applied
+    assert "linked_accounts.calendar_home_url" in applied
+    assert "events.exdates" in applied
+    assert {"password_enc", "calendar_home_url"} <= columns("linked_accounts")
+    assert "exdates" in columns("events")
+
+
+def test_icloud_columns_backfill_as_null(fresh_schema):
+    """Unlike `is_master`, these are nullable with no default -- an existing Google
+    row must simply come back NULL rather than blocking the upgrade."""
+    now = "2026-07-01 12:00:00"
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO users (name, color, sort_order, created_at, updated_at)"
+                f" VALUES ('Sam', '#3b82f6', 0, '{now}', '{now}')"
+            )
+        )
+        drop_column(conn, "linked_accounts", "password_enc")
+        conn.execute(
+            text(
+                "INSERT INTO linked_accounts (user_id, provider, email, status,"
+                " created_at, updated_at)"
+                f" VALUES (1, 'google', 'sam@example.com', 'active', '{now}', '{now}')"
+            )
+        )
+
+    sync(engine)
+
+    with engine.begin() as conn:
+        value = conn.execute(text("SELECT password_enc FROM linked_accounts")).scalar()
+    assert value is None
+
+
 def test_creates_a_table_an_older_release_did_not_have(fresh_schema):
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE photos"))

@@ -5,6 +5,7 @@ import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../ap
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { ApiTab } from './ApiTab'
 import { GoogleTab } from './GoogleTab'
+import { ICloudTab } from './ICloudTab'
 import { ScreenTab } from './ScreenTab'
 import { SharingTab } from './SharingTab'
 import { WeatherTab } from './WeatherTab'
@@ -14,6 +15,7 @@ import { timeAgo } from './timeAgo'
 const TABS = [
   'people',
   'google',
+  'icloud',
   'calendars',
   'display',
   'screen',
@@ -27,6 +29,7 @@ type Tab = (typeof TABS)[number]
 const TAB_LABELS: Record<Tab, string> = {
   people: 'Family',
   google: 'Google',
+  icloud: 'Apple',
   calendars: 'Calendars',
   display: 'Display',
   screen: 'Screen',
@@ -57,6 +60,7 @@ export function SettingsPage() {
       <div className="settings__body">
         {tab === 'people' && <PeopleTab />}
         {tab === 'google' && <GoogleTab />}
+        {tab === 'icloud' && <ICloudTab />}
         {tab === 'calendars' && <CalendarsTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'screen' && <ScreenTab />}
@@ -236,7 +240,7 @@ function CalendarsTab() {
             <div className="row__name row__name--static">
               <div>{c.name}</div>
               <div className="hint">
-                {c.is_local ? 'Local calendar' : `Google · ${c.account_email ?? ''}`}
+                {c.is_local ? 'Local calendar' : `${providerName(c)} · ${c.account_email ?? ''}`}
                 {!c.writable && ' · read-only'}
                 {sync?.last_synced_at && ` · synced ${timeAgo(sync.last_synced_at)}`}
                 {sync?.sync_error && ` · ${sync.sync_error.slice(0, 70)}`}
@@ -423,13 +427,28 @@ function DisplayTab() {
       </div>
 
       <p className="hint">
-        Server version {settings.server.version} ·{' '}
-        {settings.server.google_configured
-          ? 'Google sync configured'
-          : 'Google sync not configured'}
+        Server version {settings.server.version} · {syncSummary(settings.server)}
       </p>
     </section>
   )
+}
+
+/** What the calendar row's hint calls the service a calendar came from. */
+function providerName(c: CalendarInfo): string {
+  if (c.account_provider === 'icloud') return 'Apple'
+  if (c.account_provider === 'google') return 'Google'
+  return 'Synced'
+}
+
+/** Both services are optional and independent, so say which are actually set up
+ *  rather than reporting "not configured" on an install that syncs happily with
+ *  the other one. */
+function syncSummary(server: AppSettings['server']): string {
+  const ready = [
+    server.google_configured ? 'Google' : null,
+    server.icloud_linked ? 'Apple' : null,
+  ].filter(Boolean)
+  return ready.length ? `${ready.join(' and ')} sync configured` : 'No calendar sync configured'
 }
 
 function hours(): number[] {

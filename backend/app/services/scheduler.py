@@ -4,7 +4,7 @@ import logging
 
 from ..config import get_settings
 from ..db import SessionLocal
-from . import google_sync
+from . import sync_engine
 from .pushqueue import register_push_signal
 
 log = logging.getLogger(__name__)
@@ -41,12 +41,12 @@ async def _push_loop(signal: asyncio.Event) -> None:
 
 def _pull_once() -> int:
     with SessionLocal() as db:
-        return google_sync.pull_all(db)
+        return sync_engine.pull_all(db)
 
 
 def _push_once() -> int:
     with SessionLocal() as db:
-        return google_sync.push_pending(db)
+        return sync_engine.push_pending(db)
 
 
 def start(loop: asyncio.AbstractEventLoop) -> list[asyncio.Task]:

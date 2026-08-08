@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.4.0
+
+**iCloud calendars now sync, both ways, the same as Google.** Add an event on the wall
+display and it appears in Apple Calendar on everyone's phones within seconds; add one on a
+phone and it reaches the wall at the next sync. Deletes and repeating events included.
+
+**Setting it up takes about a minute per person, with nothing to do for the household.**
+Apple has no OAuth for calendars, so there is no developer account, no client ID or secret,
+no redirect URI, and none of the LAN-address trouble that makes the Google setup what it is.
+Each person makes an app-specific password at appleid.apple.com and pastes it into
+**Settings → Apple** with their Apple ID. It is checked against iCloud before anything is
+saved — a typo tells you immediately rather than becoming a sync that quietly never works —
+and stored encrypted with your `SECRET_KEY`, like the Google client secret.
+
+iCloud calendars arrive **switched off and unclaimed**, exactly like Google ones, so nothing
+lands on the wall until somebody says so. Reminders lists are not offered: they cannot hold
+an event. Calendars shared with you without edit rights are marked read-only.
+
+**Repeating events from Apple work properly, including the awkward parts.** Apple sends a
+series as one item with its rule rather than pre-expanded, so the app expands it locally —
+the same as it already does for its own calendars. A single occurrence somebody moved,
+renamed or cancelled on their phone comes through as well, and shows once, at the right
+time. Cancelling one occurrence from the wall display cancels that occurrence, not the
+series.
+
+**Editing an event no longer throws away what this app doesn't model.** An update reads the
+existing item and changes only the fields it owns, so an alarm or a guest list somebody set
+on their phone survives being renamed here.
+
+Under the hood, the sync engine no longer has Google baked into it: discovery, the push
+queue, conflict resolution and full-resync recovery are shared, with the service-specific
+parts behind a provider interface. Existing Google installs are unaffected — same behaviour,
+same database, no migration step. Four unused dependencies were dropped from the image along
+the way.
+
+**Messages that used to say "Google" regardless.** A read-only iCloud calendar said it was
+"read-only in Google"; the Settings footer reported "Google sync not configured" on an
+install syncing happily with Apple. Both now name whichever service they mean.
+
 ## 0.3.2
 
 **Adding an event no longer offers calendars that would swallow it.** The picker listed

@@ -50,12 +50,23 @@ class LinkedAccount(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # "google" or "icloud". Everything downstream dispatches on this, so it is also
+    # what `Event.origin` is set to for events pulled through this account.
     provider: Mapped[str] = mapped_column(String(32), default="google")
     email: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # Google only: OAuth tokens.
     access_token_enc: Mapped[str | None] = mapped_column(Text)
     refresh_token_enc: Mapped[str | None] = mapped_column(Text)
     token_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # iCloud only. Apple has no OAuth for calendars, so the credential is an
+    # app-specific password that never expires on its own -- kept in its own column
+    # rather than sharing `refresh_token_enc`, which the Google refresh path reads.
+    password_enc: Mapped[str | None] = mapped_column(Text)
+    # Cached CalDAV calendar-home, so the two-step principal discovery does not run
+    # on every sync.
+    calendar_home_url: Mapped[str | None] = mapped_column(String(500))
 
     status: Mapped[str] = mapped_column(String(32), default="active")
     last_error: Mapped[str | None] = mapped_column(Text)
@@ -76,6 +87,11 @@ class Calendar(TimestampMixin, Base):
     linked_account_id: Mapped[int | None] = mapped_column(
         ForeignKey("linked_accounts.id", ondelete="CASCADE")
     )
+    # Whatever the provider calls this calendar: a Google calendar id, or a CalDAV
+    # collection path like /1234567890/calendars/home/. The column keeps its
+    # original name because the uniqueness that stops duplicate rows lives in
+    # `uq_account_gcal`, and the startup migrator cannot recreate a constraint on an
+    # existing table. Read it through `remote_id` in provider-agnostic code.
     google_calendar_id: Mapped[str | None] = mapped_column(String(255))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color_override: Mapped[str | None] = mapped_column(String(9))
@@ -103,6 +119,15 @@ class Calendar(TimestampMixin, Base):
     def writable(self) -> bool:
         return self.is_local or self.access_role in ("owner", "writer")
 
+    @property
+    def remote_id(self) -> str | None:
+        """Provider-neutral name for `google_calendar_id`."""
+        return self.google_calendar_id
+
+    @remote_id.setter
+    def remote_id(self, value: str | None) -> None:
+        self.google_calendar_id = value
+
 
 class Event(TimestampMixin, Base):
     __tablename__ = "events"
@@ -112,7 +137,13 @@ class Event(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     calendar_id: Mapped[int] = mapped_column(ForeignKey("calendars.id", ondelete="CASCADE"))
+    # The provider's handle on this event. For Google, its event id. For CalDAV, the
+    # resource filename inside the calendar collection ("A1B2C3.ics") -- filename
+    # only, so moving a collection does not orphan every row. A recurrence override
+    # that shares a resource with its master is stored as "<filename>#<recurrence-id>",
+    # which keeps it unique within the calendar. See `remote_id` for the neutral name.
     google_event_id: Mapped[str | None] = mapped_column(String(1024))
+    # Google's etag, or the CalDAV ETag used for If-Match on update and delete.
     google_etag: Mapped[str | None] = mapped_column(String(255))
 
     title: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -126,9 +157,17 @@ class Event(TimestampMixin, Base):
 
     recurrence_rule: Mapped[str | None] = mapped_column(Text)
     recurring_event_id: Mapped[str | None] = mapped_column(String(1024))
-    # True once a recurring event has been handed to Google. Google then returns
-    # its own expanded instances, so the master must stop being displayed or every
-    # occurrence would appear twice.
+    # Occurrences of `recurrence_rule` that must not be rendered, as comma-separated
+    # naive-UTC ISO timestamps. Two things land here: a real EXDATE from a CalDAV
+    # master, and a synthesized one for every RECURRENCE-ID override, which is stored
+    # as its own row and would otherwise be drawn twice. Google never sets this --
+    # it expands series itself and simply stops sending the cancelled instance.
+    exdates: Mapped[str | None] = mapped_column(Text)
+    # True once a recurring event has been handed to a provider that expands series
+    # itself. Google does, and then returns its own instances, so the master must
+    # stop being displayed or every occurrence would appear twice. CalDAV does not:
+    # it hands back the master untouched, so iCloud series stay False and are
+    # expanded locally. See `CalendarProvider.expands_recurrence`.
     is_master: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # Last occurrence of a finite series, so a rule that finished years ago can be
     # excluded in SQL instead of being re-expanded on every calendar query. NULL
@@ -136,6 +175,9 @@ class Event(TimestampMixin, Base):
     recurrence_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     status: Mapped[str] = mapped_column(String(32), default="confirmed")
+    # "local", or the `provider` of the account this came from ("google"/"icloud").
+    # A full resync clears only the rows the provider itself gave us, so anything
+    # created here and not yet pushed survives.
     origin: Mapped[str] = mapped_column(String(16), default="local")
     sync_state: Mapped[str] = mapped_column(String(32), default="synced", index=True)
     local_updated_at: Mapped[datetime] = mapped_column(
@@ -144,6 +186,24 @@ class Event(TimestampMixin, Base):
     remote_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     calendar: Mapped[Calendar] = relationship(back_populates="events")
+
+    @property
+    def remote_id(self) -> str | None:
+        """Provider-neutral name for `google_event_id`."""
+        return self.google_event_id
+
+    @remote_id.setter
+    def remote_id(self, value: str | None) -> None:
+        self.google_event_id = value
+
+    @property
+    def remote_etag(self) -> str | None:
+        """Provider-neutral name for `google_etag`."""
+        return self.google_etag
+
+    @remote_etag.setter
+    def remote_etag(self, value: str | None) -> None:
+        self.google_etag = value
 
 
 class DashboardWidget(TimestampMixin, Base):

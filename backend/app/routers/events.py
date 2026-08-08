@@ -46,12 +46,22 @@ def _id_list(raw: str, field: str) -> list[int]:
     return out
 
 
+PROVIDER_NAMES = {"google": "Google", "icloud": "iCloud"}
+
+
+def _read_only(cal: Calendar) -> str:
+    """Name the service that made it read-only, not whichever one we shipped first."""
+    provider = cal.account.provider if cal.account else ""
+    where = PROVIDER_NAMES.get(provider, "the account it came from")
+    return f"Calendar '{cal.name}' is read-only in {where}"
+
+
 def _writable_calendar(db: Session, calendar_id: int) -> Calendar:
     cal = db.get(Calendar, calendar_id)
     if cal is None:
         raise HTTPException(404, "Calendar not found")
     if not cal.writable:
-        raise HTTPException(403, f"Calendar '{cal.name}' is read-only in Google")
+        raise HTTPException(403, _read_only(cal))
     return cal
 
 
@@ -200,7 +210,7 @@ def get_event(event_id: int, db: Session = Depends(get_db)) -> EventOut:
 def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_db)) -> EventOut:
     ev = _load(db, event_id)
     if not ev.calendar.writable:
-        raise HTTPException(403, f"Calendar '{ev.calendar.name}' is read-only in Google")
+        raise HTTPException(403, _read_only(ev.calendar))
 
     changes = payload.model_dump(exclude_unset=True)
     if "calendar_id" in changes and changes["calendar_id"] != ev.calendar_id:
@@ -241,7 +251,7 @@ def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_
 def delete_event(event_id: int, db: Session = Depends(get_db)) -> None:
     ev = _load(db, event_id)
     if not ev.calendar.writable:
-        raise HTTPException(403, f"Calendar '{ev.calendar.name}' is read-only in Google")
+        raise HTTPException(403, _read_only(ev.calendar))
 
     if ev.calendar.is_local or ev.google_event_id is None:
         db.delete(ev)

@@ -22,6 +22,7 @@ def calendar_out(cal: Calendar) -> CalendarOut:
         google_calendar_id=cal.google_calendar_id,
         linked_account_id=cal.linked_account_id,
         account_email=cal.account.email if cal.account else None,
+        account_provider=cal.account.provider if cal.account else None,
         claimed_by_user_id=cal.claimed_by_user_id,
         color=calendar_color(cal),
         sync_enabled=cal.sync_enabled,
