@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { useEvents, useSettings } from '../api/hooks'
 import type { Photo } from '../api/types'
 import { useIdle, useSleepWindow } from '../hooks/useIdle'
+import { usePhoneViewport } from '../hooks/usePhoneViewport'
 
 /**
  * The idle state of a wall display. Either a photo slideshow or a big clock with
@@ -15,14 +16,20 @@ import { useIdle, useSleepWindow } from '../hooks/useIdle'
  */
 export function Screensaver() {
   const { data: settings } = useSettings()
+  // A phone already has a lock screen, and nobody glances at one from the doorway.
+  // Blanking it over a calendar somebody is reading is just something to dismiss.
+  // This is a per-device decision, so it cannot be a setting: the settings are
+  // shared by every screen in the house, and the wall display still wants this.
+  const onPhone = usePhoneViewport()
 
-  const enabled = settings?.screensaver_enabled ?? false
+  const enabled = (settings?.screensaver_enabled ?? false) && !onPhone
   const mode = settings?.screensaver_mode ?? 'auto'
   const delayMs = (settings?.screensaver_delay_minutes ?? 5) * 60_000
 
   const idle = useIdle(delayMs, enabled && mode !== 'off')
+  // The overnight blackout is the same idea and equally unwanted on a phone.
   const asleep = useSleepWindow(
-    settings?.sleep_enabled ?? false,
+    (settings?.sleep_enabled ?? false) && !onPhone,
     settings?.sleep_start_hour ?? 23,
     settings?.sleep_end_hour ?? 7,
   )
