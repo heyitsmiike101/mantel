@@ -287,6 +287,24 @@ Every open screen in the house picks up the new version within a minute — no r
 walking around with a keyboard. Database changes are applied at startup, so upgrading never needs
 a manual migration step.
 
+## Releasing
+
+**Bump `VERSION`, merge to `main`.** That is the whole process.
+
+CI runs the test suites on every push and pull request. On a push to `main` it then compares
+`VERSION` against the tags that already exist:
+
+| `VERSION` on main | What happens |
+| ----------------- | ------------ |
+| Not yet released | Tags the commit `vX.Y.Z` and publishes `X.Y.Z`, `X.Y` and `latest` to GHCR for `amd64` and `arm64` |
+| Already released | Tests only. Ordinary commits cost nothing. |
+
+So the version number is the release switch, and it is the same number the app reports at
+`/api/version` and shows in the corner of the screen — there is no second place to remember to
+update, and no way to ship a build the running app cannot identify.
+
+Pushing a `v*` tag by hand still works if you need to re-release something.
+
 ## Configuration
 
 **Almost everything is configured in the app, under Settings**, with the instructions on the page:

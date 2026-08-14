@@ -41,22 +41,54 @@ jobs:
 
   image:
     needs: test
-    # Only a release tag publishes. Pushes to main and pull requests stop at the
-    # test job above.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Publishing is part of merging, not a separate thing to remember. A push to main
+    # whose VERSION has not been released yet publishes it and tags the commit; a push
+    # whose VERSION is already tagged does nothing, so ordinary commits are free. A v*
+    # tag pushed by hand still works, for re-releasing.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # write, because this job creates the release tag it publishes under.
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
 
+      - name: Decide whether this VERSION is a release
+        id: gate
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # 0.5.8 also publishes as 0.5, so an install can follow a minor line.
+          echo "series=${version%.*}" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then
+            echo "Already released: v$version. Nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version: v$version. Publishing."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag the release
+        if: steps.gate.outputs.publish == 'true' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.gate.outputs.version }}" \
+            -m "Release v${{ steps.gate.outputs.version }}"
+          # Pushed with GITHUB_TOKEN, which deliberately does not start another run --
+          # so this cannot loop back into itself.
+          git push origin "v${{ steps.gate.outputs.version }}"
+
       # QEMU provides the arm64 leg; the frontend stage pins itself to
       # BUILDPLATFORM so only the Python layer is emulated.
       - uses: docker/setup-qemu-action@v3
+        if: steps.gate.outputs.publish == 'true'
       - uses: docker/setup-buildx-action@v3
+        if: steps.gate.outputs.publish == 'true'
 
       - uses: docker/login-action@v3
+        if: steps.gate.outputs.publish == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -64,15 +96,15 @@ jobs:
 
       - id: meta
         uses: docker/metadata-action@v5
+        if: steps.gate.outputs.publish == 'true'
         with:
           images: ghcr.io/${{ github.repository }}
+          # Driven by the VERSION file rather than the ref, so a main push and a
+          # hand-pushed tag produce identical tags.
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            # This workflow only ever runs on a v* tag, where is_default_branch is
-            # false -- so the usual {{is_default_branch}} guard meant `latest` was
-            # never published at all. Tag it on any release tag instead.
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ steps.gate.outputs.version }}
+            type=raw,value=${{ steps.gate.outputs.series }}
+            type=raw,value=latest
 
       - name: Read VERSION
         id: version
@@ -83,6 +115,7 @@ jobs:
           echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
+        if: steps.gate.outputs.publish == 'true'
         with:
           context: .
           platforms: linux/amd64,linux/arm64
