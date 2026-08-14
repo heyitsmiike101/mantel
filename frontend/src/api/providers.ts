@@ -39,6 +39,13 @@ export function calendarLabel(c: {
 }): string {
   if (!c.account_provider && !c.account_email) return c.name
   const source = c.account_provider ? providerLabel(c.account_provider) : null
-  const parts = [source, c.account_email].filter(Boolean).join(' · ')
-  return `${c.name} (${parts})`
+
+  // A primary calendar is named after the account, so the full form says the same
+  // address twice: "mfuentes@realestatefuentes.com (Google · mfuentes@realestate…)"
+  // -- 72 characters to convey about 35, in a dropdown 276px wide on a phone. The
+  // service alone is the only part that adds anything.
+  const sameAsName = !!c.account_email && c.account_email === c.name
+  const parts = sameAsName ? [source] : [source, c.account_email]
+
+  return `${c.name} (${parts.filter(Boolean).join(' · ')})`
 }

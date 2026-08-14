@@ -47,6 +47,18 @@ describe('calendarLabel', () => {
     )
   })
 
+  it('does not print the address twice for a primary calendar', () => {
+    // These are named after the account itself, so the long form was 72 characters
+    // of which half was a repeat -- in the narrowest dropdown in the app.
+    expect(
+      calendarLabel({
+        name: 'me@gmail.com',
+        account_provider: 'google',
+        account_email: 'me@gmail.com',
+      }),
+    ).toBe('me@gmail.com (Google)')
+  })
+
   it('still names the service when the address is missing', () => {
     expect(calendarLabel({ name: 'Holidays', account_provider: 'icloud' })).toBe(
       'Holidays (Apple)',

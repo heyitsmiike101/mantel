@@ -4,6 +4,7 @@ import type { CalendarEvent } from '../api/types'
 import { calendarLabel, providerPossessive } from '../api/providers'
 import { pickableCalendars } from './pickableCalendars'
 import { calendarsForProfile, initialSelection, profilesWithCalendars } from './eventProfiles'
+import { rememberLastTarget } from './lastEventTarget'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
 import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
 
@@ -96,8 +97,14 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
       recurrence_rule: buildRule(repeat.freq as Freq, repeat.byday, repeat.until),
     }
     try {
-      if (isNew) await create.mutateAsync(body)
-      else await update.mutateAsync({ id: event.id, ...body })
+      if (isNew) {
+        await create.mutateAsync(body)
+        // Remembered only once it is actually used, so idly opening the dialog and
+        // cancelling does not change where the next event goes.
+        rememberLastTarget(profileId, calendarId)
+      } else {
+        await update.mutateAsync({ id: event.id, ...body })
+      }
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the event.')

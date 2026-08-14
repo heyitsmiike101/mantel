@@ -1,4 +1,5 @@
 import type { CalendarInfo, User } from '../api/types'
+import { readLastTarget } from './lastEventTarget'
 
 /** The "profile" an event is being filed under: a family member, or the household. */
 export interface EventProfile {
@@ -67,6 +68,13 @@ export function initialSelection(
       profileId: profileOfCalendar(calendars, currentCalendarId),
       calendarId: currentCalendarId,
     }
+  }
+
+  // What this device filed the last event under. Only used for a new event, and only
+  // while it is still true -- see isStillValid.
+  const remembered = readLastTarget(calendars)
+  if (remembered) {
+    return { profileId: remembered.profileId, calendarId: remembered.calendarId }
   }
 
   const first = profiles[0]

@@ -725,4 +725,24 @@ a.btn {
   .calpage__body {
     border-top: 1px solid var(--border);
   }
+
+  /* A phone has 390px, and the dialog was spending 114 of them on margins and
+     padding before a dropdown got any: 12 overlay + 20 card on each side, then the
+     control's own padding and arrow. Tightened here only -- there is no shortage of
+     room on the wall display, where the card stays as it was. */
+  .modal {
+    padding: 6px;
+  }
+
+  .modal__card {
+    padding: 14px;
+    width: 100%;
+  }
+
+  .modal__card select,
+  .modal__card input,
+  .modal__card textarea {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
 }
