@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent } from '../api/hooks'
+import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent, useUsers } from '../api/hooks'
 import type { CalendarEvent } from '../api/types'
 import { calendarLabel, providerPossessive } from '../api/providers'
 import { pickableCalendars } from './pickableCalendars'
+import { calendarsForProfile, initialSelection, profilesWithCalendars } from './eventProfiles'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
 import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
 
@@ -16,6 +17,7 @@ const HOUR_MS = 3_600_000
 
 export function EventModal({ event, defaultStart, onClose }: Props) {
   const { data: calendars = [] } = useCalendars()
+  const { data: users = [] } = useUsers()
   const create = useCreateEvent()
   const update = useUpdateEvent()
   const remove = useDeleteEvent()
@@ -32,9 +34,15 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
   const [location, setLocation] = useState(event?.location ?? '')
   const [description, setDescription] = useState(event?.description ?? '')
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
-  const [calendarId, setCalendarId] = useState<number | null>(
-    event?.calendar_id ?? writable[0]?.id ?? null,
-  )
+  // Whose event is this? Chosen first, because it is the question somebody actually
+  // has in mind -- the calendar is a consequence of it. Derived from the event's own
+  // calendar when editing, so an existing event opens showing the truth.
+  const start0 = initialSelection(choices, users, event?.calendar_id ?? null)
+  const [profileId, setProfileId] = useState<number | null>(start0.profileId)
+  const [calendarId, setCalendarId] = useState<number | null>(start0.calendarId)
+
+  const profiles = profilesWithCalendars(choices, users)
+  const profileCalendars = calendarsForProfile(choices, profileId)
   const [start, setStart] = useState(
     toLocalInput(event ? new Date(event.start_at) : (defaultStart ?? new Date())),
   )
@@ -49,8 +57,14 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
   const [repeat, setRepeat] = useState(() => parseRule(event?.recurrence_rule))
 
   useEffect(() => {
-    if (calendarId === null && writable.length > 0) setCalendarId(writable[0].id)
-  }, [writable, calendarId])
+    // Calendars arrive after the first render, so the opening choice has to be made
+    // again once they do.
+    if (calendarId === null && choices.length > 0) {
+      const pick = initialSelection(choices, users, event?.calendar_id ?? null)
+      setProfileId(pick.profileId)
+      setCalendarId(pick.calendarId)
+    }
+  }, [choices, users, calendarId, event])
 
   // Hold off the kiosk auto-reload while someone is mid-edit.
   useEffect(() => acquireReloadGuard(), [])
@@ -134,13 +148,34 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
         </label>
 
         <label className="field">
+          <span>Who is this for?</span>
+          <select
+            value={profileId ?? ''}
+            onChange={(e) => {
+              const next = e.target.value === '' ? null : Number(e.target.value)
+              setProfileId(next)
+              // Their calendars are a different set, so the old choice may not be in
+              // it. Land on their first one rather than leaving a stale selection.
+              setCalendarId(calendarsForProfile(choices, next)[0]?.id ?? null)
+            }}
+            disabled={readOnly || !isNew}
+          >
+            {profiles.map((p) => (
+              <option key={p.id ?? 'household'} value={p.id ?? ''}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field">
           <span>Calendar</span>
           <select
             value={calendarId ?? ''}
             onChange={(e) => setCalendarId(Number(e.target.value))}
             disabled={readOnly || !isNew}
           >
-            {choices.map((c) => (
+            {profileCalendars.map((c) => (
               <option key={c.id} value={c.id}>
                 {calendarLabel(c)}
               </option>
