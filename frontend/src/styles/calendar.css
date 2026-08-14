@@ -405,6 +405,11 @@
   inset: 0;
   /* Sized to the visible area, not the layout viewport, or the keyboard covers the
      card's buttons on a phone and there is no way to scroll to them. */
+  /* Anchored to the visible area, like the shell: with the keyboard open, iOS
+     scrolls the layout viewport, and `inset: 0` alone would leave the dialog pinned
+     to a top edge that has moved off-screen. */
+  top: var(--app-offset, 0px);
+  bottom: auto;
   height: var(--app-height, 100%);
   background: rgba(0, 0, 0, 0.65);
   /* The overlay is what scrolls, not the card. `place-items: center` centred the
@@ -416,6 +421,12 @@
   justify-content: center;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Without this a scroll that reaches either end of the dialog carries on into the
+     page behind it, which is what made the scrolling feel like it was catching. */
+  overscroll-behavior: contain;
+  /* Vertical dragging belongs to this element, so the browser stops waiting to see
+     whether the gesture was meant for the page. */
+  touch-action: pan-y;
   z-index: 100;
   padding: 12px;
 }

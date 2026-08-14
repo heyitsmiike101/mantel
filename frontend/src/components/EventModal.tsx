@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent, useUsers } from '../api/hooks'
 import type { CalendarEvent } from '../api/types'
 import { calendarLabel, providerPossessive } from '../api/providers'
 import { pickableCalendars } from './pickableCalendars'
 import { calendarsForProfile, initialSelection, profilesWithCalendars } from './eventProfiles'
 import { rememberLastTarget } from './lastEventTarget'
+import { DEFAULT_MINUTES, endFor, toLocalInput } from './eventTimes'
 import { acquireReloadGuard } from '../hooks/useVersionPoll'
 import { type Freq, RecurrencePicker, buildRule, parseRule } from './RecurrencePicker'
 
@@ -14,7 +16,6 @@ interface Props {
   onClose: () => void
 }
 
-const HOUR_MS = 3_600_000
 
 export function EventModal({ event, defaultStart, onClose }: Props) {
   const { data: calendars = [] } = useCalendars()
@@ -51,9 +52,11 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
     toLocalInput(
       event
         ? new Date(event.end_at)
-        : new Date((defaultStart ?? new Date()).getTime() + HOUR_MS),
+        : new Date((defaultStart ?? new Date()).getTime() + DEFAULT_MINUTES * 60_000),
     ),
   )
+  // An existing event's end was chosen by somebody; a new one's is only a default.
+  const [endEdited, setEndEdited] = useState(!isNew)
   const [error, setError] = useState<string | null>(null)
   const [repeat, setRepeat] = useState(() => parseRule(event?.recurrence_rule))
 
@@ -121,7 +124,12 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
     }
   }
 
-  return (
+  // Rendered at the top of the document, not inside the app shell. The shell carries
+  // a transform for burn-in shift, and a transformed ancestor makes `position: fixed`
+  // resolve against *it* instead of the viewport -- so the dialog was being positioned
+  // and sized relative to a box that itself moves with the keyboard. That is the
+  // floating, and the scrolling that worked only sometimes.
+  return createPortal(
     <div className="modal" onClick={onClose} role="dialog" aria-modal="true">
       <div className="modal__card" onClick={(e) => e.stopPropagation()}>
         <h2 className="modal__title">{isNew ? 'New event' : readOnly ? 'Event' : 'Edit event'}</h2>
@@ -196,7 +204,11 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
             <input
               type="datetime-local"
               value={start}
-              onChange={(e) => setStart(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value
+                setStart(next)
+                setEnd(endFor(next, start, end, endEdited))
+              }}
               disabled={readOnly}
             />
           </label>
@@ -205,7 +217,10 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
             <input
               type="datetime-local"
               value={end}
-              onChange={(e) => setEnd(e.target.value)}
+              onChange={(e) => {
+                setEnd(e.target.value)
+                setEndEdited(true)
+              }}
               disabled={readOnly}
             />
           </label>
@@ -268,6 +283,8 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
         </div>
       </div>
     </div>
+  ,
+    document.body,
   )
 }
 
@@ -279,7 +296,3 @@ function utcMidnight(localInput: string, addDays: number): string {
 }
 
 /** <input type="datetime-local"> wants wall-clock local time with no offset. */
-function toLocalInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
