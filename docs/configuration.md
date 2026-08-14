@@ -1,12 +1,13 @@
 # Configuration reference
 
-**Nearly everything is configured in the app, under Settings.** Google Calendar, weather, the
+**Nearly everything is configured in the app, under Settings.** Google Calendar, iCloud, weather, the
 screensaver, sharing links and Home Assistant all live there, each with instructions on the
 page, and they take effect immediately — no file to edit, no container to restart.
 
 `.env` holds only what must exist before the app can start:
 
-- **`SECRET_KEY`** — encrypts your Google client secret and everyone's OAuth tokens, so it has
+- **`SECRET_KEY`** — encrypts your Google client secret, everyone's OAuth tokens and every
+  iCloud app-specific password, so it has
   to be available before anything can be read out of the database.
 - **`PORT`** and a few operational knobs (database URL, sync intervals, CORS).
 
@@ -32,7 +33,8 @@ that predates the Settings screen keeps working. After that the Settings value w
 
 ### `SECRET_KEY`
 
-Default is an insecure placeholder — **set your own**. It encrypts Google tokens at rest and
+Default is an insecure placeholder — **set your own**. It encrypts Google tokens and iCloud
+app-specific passwords at rest and
 signs the OAuth state parameter. Generate one with:
 
 ```bash
@@ -40,8 +42,15 @@ openssl rand -base64 32
 ```
 
 Any string works (it gets hashed into a key if it isn't already a Fernet key), but a generated
-one is best. Changing it invalidates stored Google tokens — accounts show "Needs reconnecting"
+one is best. Changing it invalidates stored Google tokens and iCloud passwords alike —
+accounts show "Needs reconnecting"
 and each person reconnects once. No calendar data is lost.
+
+### iCloud has no configuration
+
+There is nothing to put here for Apple. iCloud needs no client id, no secret and no redirect
+URI — each person adds an app-specific password under **Settings → Apple**. See
+[setup-icloud.md](setup-icloud.md).
 
 ### `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` *(legacy — set them in Settings → Google)*
 
@@ -55,14 +64,14 @@ Settings screen. Leave them empty on a new install.
 
 ### `SYNC_INTERVAL_SECONDS`
 
-Default `300` (5 minutes). How often the app pulls changes from Google. Lowering it makes
-Google-side edits appear faster at the cost of more API calls; a family is nowhere near
-Google's quotas, so `60` is fine if you want it snappier.
+Default `300` (5 minutes). How often the app pulls changes from Google and iCloud. Lowering it
+makes edits made elsewhere appear faster at the cost of more API calls; a family is nowhere near
+either service's limits, so `60` is fine if you want it snappier.
 
 ### `PUSH_INTERVAL_SECONDS`
 
 Default `15`. A safety net for retrying failed pushes. Normal edits don't wait for it — saving
-an event wakes the push loop immediately, so changes reach Google in about a second.
+an event wakes the push loop immediately, so changes reach Google or iCloud in about a second.
 
 ### `SYNC_PAST_DAYS`
 
@@ -71,7 +80,8 @@ want more history on the wall; it only affects the initial import.
 
 ### `SYNC_ENABLED`
 
-Default `true`. Set to `false` to pause all Google syncing without unlinking anyone — useful
+Default `true`. Set to `false` to pause all syncing, Google and iCloud alike, without unlinking
+anyone — useful
 while debugging or if you're travelling with the display.
 
 ### `DATABASE_URL`
@@ -184,6 +194,7 @@ Also stored, currently only settable through the API (`PATCH /api/settings`):
 | Database            | `mantel-data` Docker volume, `/data/family.db` |
 | Screensaver photos  | The same volume, `/data/photos/`                        |
 | Google tokens       | Encrypted inside that database                         |
+| iCloud passwords    | Encrypted inside that database                         |
 | Version             | The `VERSION` file at the repo root                    |
 | Server settings     | `.env`                                                 |
 | Display preferences | The database (`app_settings` table)                    |

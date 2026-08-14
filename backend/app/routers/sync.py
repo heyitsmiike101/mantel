@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..db import get_db
 from ..models import Calendar, Event, LinkedAccount
-from ..services import google_config, google_sync
+from ..services import google_config, sync_engine
 
 router = APIRouter(prefix="/sync", tags=["sync"])
 
@@ -24,6 +24,7 @@ class CalendarSyncStatus(BaseModel):
 
 class SyncStatusOut(BaseModel):
     google_configured: bool
+    icloud_linked: bool
     sync_enabled: bool
     interval_seconds: int
     accounts_needing_reauth: list[str]
@@ -48,8 +49,9 @@ class DiscoverOut(BaseModel):
     summary="Sync health",
     description=(
         "Shows when each calendar last synced and whether anything needs attention. "
-        "`accounts_needing_reauth` lists Google accounts whose access expired -- those "
-        "have to be linked again through the consent screen."
+        "`accounts_needing_reauth` lists accounts that stopped working and have to be "
+        "linked again -- a Google token that expired, or an iCloud app-specific "
+        "password that was revoked."
     ),
 )
 def sync_status(db: Session = Depends(get_db)) -> SyncStatusOut:
@@ -69,6 +71,14 @@ def sync_status(db: Session = Depends(get_db)) -> SyncStatusOut:
         # `settings` reported "not configured" on every install that set Google up
         # through the Settings page, which is now all of them.
         google_configured=google_config.load(db).configured,
+        # iCloud needs no setting up -- an account is either linked or it is not --
+        # so "is it configured" is answered by whether one exists.
+        icloud_linked=db.scalar(
+            select(func.count())
+            .select_from(LinkedAccount)
+            .where(LinkedAccount.provider == "icloud")
+        )
+        > 0,
         sync_enabled=s.sync_enabled,
         interval_seconds=s.sync_interval_seconds,
         accounts_needing_reauth=list(reauth),
@@ -90,34 +100,34 @@ def sync_status(db: Session = Depends(get_db)) -> SyncStatusOut:
 @router.post(
     "/run",
     response_model=SyncRunOut,
-    summary="Sync with Google now",
+    summary="Sync every linked account now",
     description=(
-        "Pushes anything pending, then pulls the latest from Google. Syncing also happens "
-        "on a timer, so this is only needed when you don't want to wait."
+        "Pushes anything pending, then pulls the latest from Google and iCloud. Syncing "
+        "also happens on a timer, so this is only needed when you don't want to wait."
     ),
 )
 def run_sync(db: Session = Depends(get_db)) -> SyncRunOut:
-    pushed = google_sync.push_pending(db)
+    pushed = sync_engine.push_pending(db)
     # Discovery first, so a calendar added in Google is both listed *and* pulled
     # in the same run once somebody switches it on.
-    new_calendars = google_sync.discover_all(db)
-    pulled = google_sync.pull_all(db)
+    new_calendars = sync_engine.discover_all(db)
+    pulled = sync_engine.pull_all(db)
     return SyncRunOut(pulled=pulled, pushed=pushed, new_calendars=new_calendars)
 
 
 @router.post(
     "/calendars",
     response_model=DiscoverOut,
-    summary="Check Google for new calendars",
+    summary="Check for new calendars",
     description=(
-        "Re-reads the calendar list of every linked Google account. A calendar created "
-        "or shared with the account after it was linked shows up here. New calendars "
-        "arrive with syncing switched off, so nothing appears on a display until "
-        "somebody enables it."
+        "Re-reads the calendar list of every linked account, Google and iCloud alike. A "
+        "calendar created or shared with the account after it was linked shows up here. "
+        "New calendars arrive with syncing switched off, so nothing appears on a display "
+        "until somebody enables it."
     ),
 )
 def discover_calendars(db: Session = Depends(get_db)) -> DiscoverOut:
-    new_calendars = google_sync.discover_all(db)
+    new_calendars = sync_engine.discover_all(db)
     total = db.scalar(
         select(func.count()).select_from(Calendar).where(Calendar.linked_account_id.is_not(None))
     )

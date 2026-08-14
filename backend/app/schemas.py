@@ -89,6 +89,11 @@ class CalendarOut(BaseModel):
     google_calendar_id: str | None
     linked_account_id: int | None
     account_email: str | None = None
+    account_provider: str | None = Field(
+        default=None,
+        description="'google' or 'icloud'; null for a calendar that lives only here.",
+        examples=["icloud"],
+    )
     claimed_by_user_id: int | None
     color: str = Field(description="Effective display color: override, else owner's color.")
     sync_enabled: bool

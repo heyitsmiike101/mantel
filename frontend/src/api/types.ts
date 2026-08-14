@@ -6,6 +6,34 @@ export interface User {
   sort_order: number
 }
 
+/** A connected Google or iCloud account. Credentials are never sent to the client. */
+export interface LinkedAccount {
+  id: number
+  user_id: number
+  provider: string
+  email: string
+  status: string
+  last_error: string | null
+}
+
+export interface SyncStatus {
+  google_configured: boolean
+  icloud_linked: boolean
+  sync_enabled: boolean
+  interval_seconds: number
+  /** Emails of accounts that stopped working, whichever service they belong to. */
+  accounts_needing_reauth: string[]
+  pending_pushes: number
+  calendars: {
+    calendar_id: number
+    name: string
+    account_email: string | null
+    sync_enabled: boolean
+    last_synced_at: string | null
+    sync_error: string | null
+  }[]
+}
+
 export interface CalendarInfo {
   id: number
   name: string
@@ -13,6 +41,8 @@ export interface CalendarInfo {
   google_calendar_id: string | null
   linked_account_id: number | null
   account_email: string | null
+  /** 'google' or 'icloud'; null for a calendar that lives only in this app. */
+  account_provider: string | null
   claimed_by_user_id: number | null
   color: string
   sync_enabled: boolean
@@ -38,7 +68,7 @@ export interface CalendarEvent {
   recurring: boolean
   recurrence_rule: string | null
   recurrence_text: string | null
-  origin: 'local' | 'google'
+  origin: 'local' | 'google' | 'icloud'
   sync_state: string
   editable: boolean
 }
@@ -157,6 +187,7 @@ export interface AppSettings {
   server: {
     version: string
     google_configured: boolean
+    icloud_linked: boolean
     google_client_secret_set: boolean
     ha_token_set: boolean
     google_redirect_uri: string

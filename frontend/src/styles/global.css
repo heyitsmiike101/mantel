@@ -12,7 +12,7 @@
 
   --radius: 14px;
   --touch: 44px;
-  --nav-size: 76px;
+  --nav-size: 92px;
 
   --font-xs: calc(0.75rem * var(--scale));
   --font-sm: calc(0.875rem * var(--scale));
@@ -25,11 +25,11 @@
 
 :root[data-scale='large'] {
   --scale: 1.2;
-  --nav-size: 88px;
+  --nav-size: 104px;
 }
 :root[data-scale='wall'] {
   --scale: 1.45;
-  --nav-size: 100px;
+  --nav-size: 118px;
 }
 
 * {
@@ -85,11 +85,26 @@ button {
 /* ---- App shell: bottom nav in portrait, side rail in landscape ---- */
 
 .shell {
-  height: 100%;
+  /* --app-height is the visual viewport, which shrinks when the keyboard opens;
+     100% is the layout viewport, which does not. --app-offset follows where the
+     visible area has scrolled to, so the app sits on it rather than having its top
+     and bottom cut away. Both are only set while a keyboard is up; otherwise this
+     is a plain full-height box. See hooks/useViewportFit.ts. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--app-offset, 0px);
+  height: var(--app-height, 100%);
   display: grid;
   /* The top row is `auto`, so with no bookmark configured the bar isn't rendered
      and the row collapses to nothing. */
   grid-template-rows: auto 1fr auto;
+  /* The one that actually mattered. Without a 0-minimum column the shell's single
+     grid column is sized to its widest descendant, so a too-wide week grid stretched
+     the entire app -- carrying the toolbar buttons, the last nav item and the
+     bookmark pill off the right of a phone screen. Everything below scrolls or
+     truncates on its own; nothing should widen the shell. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas: 'top' 'main' 'nav';
 }
 
@@ -97,6 +112,16 @@ button {
   grid-area: main;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  /* A grid item's automatic minimum size is its content, so this needs saying too
+     or `main` re-widens the column that was just constrained above. */
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Same reason: the nav is a flex row of fixed-ish buttons and must live within the
+   shell's width rather than setting it. */
+.shell__nav {
+  min-width: 0;
 }
 
 .shell__nav {
@@ -150,7 +175,7 @@ button {
 @media (orientation: landscape) and (min-width: 700px) {
   .shell {
     grid-template-rows: auto 1fr;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
       'nav top'
       'nav main';
@@ -166,23 +191,27 @@ button {
 }
 
 .navbtn {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 6px 2px;
+  padding: 10px 6px;
   border-radius: var(--radius);
   color: var(--text-dim);
-  font-size: var(--font-xs);
-  line-height: 1.1;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
   min-height: var(--touch);
-}
-
-.navbtn__icon {
-  font-size: calc(1.4rem * var(--scale));
+  /* A label is the whole button now, so it must never be the thing that widens
+     the bar -- it shortens instead. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .navbtn[aria-current='page'] {
@@ -192,6 +221,17 @@ button {
 
 .navbtn:active {
   background: var(--bg-elev-2);
+}
+
+/* The side rail is tall and narrow, so its labels stack rather than sitting in a
+   row -- and there is room there for a little more air. */
+@media (orientation: landscape) and (min-width: 700px) {
+  .navbtn {
+    flex: 0 0 auto;
+    padding: 14px 6px;
+    font-size: var(--font-xs);
+    white-space: normal;
+  }
 }
 
 /* ---- Version badge ---- */
@@ -240,4 +280,63 @@ button {
   gap: 8px;
   text-align: center;
   padding: 24px;
+}
+
+
+/* ------------------------------ phone layout ------------------------------ */
+/* 640px rather than the nav's own 700px landscape breakpoint: a portrait tablet
+   is roomy enough for all four view buttons, a phone is not. */
+
+/* Above phone size the combined entry is redundant -- the four views are there. */
+.navbtn--calendar {
+  display: none;
+}
+
+.navviews {
+  /* `contents` so the four links stay direct flex children of the nav and keep
+     their sizing exactly as before. */
+  display: contents;
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 4px 8px;
+    padding-top: max(4px, env(safe-area-inset-top));
+  }
+
+  .topbar__link {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: var(--font-xs);
+  }
+
+  .navbtn--calendar {
+    display: flex;
+  }
+
+  .navviews {
+    display: none;
+  }
+
+  /* Nothing on a phone is a kiosk that needs to be told which build it is running,
+     and it was costing a nav slot. Still one tap away in Settings. */
+  .version-badge {
+    display: none;
+  }
+
+  /* Four items across 390px, so they may be narrow -- but never narrower than a
+     thumb, and never wide enough to push a sibling off the end. */
+  .navbtn {
+    min-width: 0;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .navbtn span:not(.navbtn__icon) {
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
 }

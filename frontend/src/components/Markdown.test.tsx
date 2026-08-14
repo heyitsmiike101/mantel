@@ -27,7 +27,10 @@ describe('Markdown', () => {
 
   it('renders the real ai-guide the app ships', () => {
     const html = render(readFileSync(GUIDE, 'utf8'))
-    expect(html).toContain('Family Calendar')
+    // The doc's own subject, not the product name -- this assertion used to say
+    // "Family Calendar" and broke the build the day the app was renamed, which
+    // told us nothing about whether the markdown still rendered.
+    expect(html).toContain('API guide for AI agents')
     expect(html).toContain('<table>')
     expect(html).toContain('<pre>')
     // The line that used to hang, rendered.

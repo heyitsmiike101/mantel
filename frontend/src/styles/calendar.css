@@ -1,11 +1,29 @@
+/* A column flex rather than a grid with hand-counted rows: the header strip above
+   the calendar is now three optional pieces (toolbar, view tabs, people chips) and
+   an explicit `auto auto 1fr` silently puts the body in the wrong row whenever one
+   of them isn't rendered. Here the body simply takes what is left, however many
+   headers there are. */
 .calpage {
   height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  /* Without an explicit 0-minimum column, the toolbar's min-content width would push the
-     whole page wider than a phone viewport. */
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  /* Without a 0 minimum the toolbar's min-content width pushes the whole page
+     wider than a phone viewport. */
+  min-width: 0;
+}
+
+.calpage > * {
+  min-width: 0;
+}
+
+/* The strip above the grid must keep its natural height. As flex children these
+   default to flex-shrink: 1, and when the grid wants room they get squeezed --
+   which chopped the bottom off the people chips rather than shortening the grid. */
+.calpage__bar,
+.viewtabs,
+.peoplefilter {
+  flex: 0 0 auto;
 }
 
 .calpage__bar {
@@ -58,6 +76,8 @@
 }
 
 .calpage__body {
+  /* Takes whatever the headers above it leave. */
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   touch-action: pan-y;
@@ -77,7 +97,10 @@
 .timegrid__head,
 .timegrid__allday {
   display: grid;
-  grid-template-columns: var(--gutter) repeat(var(--days, 7), 1fr);
+  /* minmax(0, ...) not 1fr: a bare 1fr will not shrink below the column's
+     min-content, which pushed Friday and Saturday off a phone screen -- and with
+     them the toolbar buttons and the last nav item, since the whole shell grew. */
+  grid-template-columns: var(--gutter) repeat(var(--days, 7), minmax(0, 1fr));
   border-bottom: 1px solid var(--border);
 }
 
@@ -127,7 +150,7 @@
 
 .timegrid__body {
   display: grid;
-  grid-template-columns: var(--gutter) repeat(var(--days, 7), 1fr);
+  grid-template-columns: var(--gutter) repeat(var(--days, 7), minmax(0, 1fr));
   overflow-y: auto;
   min-height: 0;
   position: relative;
@@ -263,7 +286,7 @@
 
 .month__head {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   border-bottom: 1px solid var(--border);
 }
 
@@ -277,7 +300,7 @@
 
 .month__grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   min-height: 0;
 }
 
@@ -289,6 +312,34 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr;
+  /* Anchors the full-cell add button below. */
+  position: relative;
+}
+
+/* Fills the cell so tapping anywhere empty starts a new event, and sits under the
+   day number and the event chips so those keep their own taps. Same arrangement as
+   .timegrid__slot beneath .event-block. */
+.month__addlayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 0;
+}
+
+.month__addlayer:active {
+  background: rgba(56, 189, 248, 0.15);
+}
+
+/* It covers the whole cell, so the default outline would be drawn under the day
+   number and the chips. Inset it so keyboard focus is actually visible. */
+.month__addlayer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.month__cell > :not(.month__addlayer) {
+  position: relative;
+  z-index: 1;
 }
 
 .month__cell[data-outside='true'] {
@@ -307,6 +358,12 @@
   color: var(--text-dim);
   min-height: 30px;
   min-width: 30px;
+  /* No longer a button; keep it looking and sitting exactly as it did. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Let taps fall through to the add layer underneath. */
+  pointer-events: none;
 }
 
 .month__cell[data-today='true'] .month__daynum {
@@ -320,6 +377,14 @@
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
+  /* The column stretches to fill the cell whether or not there are any events in
+     it, so it would otherwise swallow every tap on the empty space below the last
+     chip. The chips take their taps back individually. */
+  pointer-events: none;
+}
+
+.month__events > * {
+  pointer-events: auto;
 }
 
 .chip--month {
@@ -338,21 +403,37 @@
 .modal {
   position: fixed;
   inset: 0;
+  /* Sized to the visible area, not the layout viewport, or the keyboard covers the
+     card's buttons on a phone and there is no way to scroll to them. */
+  height: var(--app-height, 100%);
   background: rgba(0, 0, 0, 0.65);
-  display: grid;
-  place-items: center;
+  /* The overlay is what scrolls, not the card. `place-items: center` centred the
+     card by pushing its top *above* the overlay when it was too tall to fit --
+     off-screen, and unreachable, because nothing here scrolled. A flex box that
+     scrolls, with `margin: auto` on the card, centres it while there is room and
+     lets you scroll to the top the moment there isn't. */
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   z-index: 100;
   padding: 12px;
 }
 
 .modal__card {
+  /* Centred when it fits, top-aligned when it does not -- and the overlay above
+     scrolls to the rest.
+     There is deliberately no max-height here. It used to be 92vh, and vh is the
+     *layout* viewport, which does not shrink for the keyboard: the card was
+     allowed to be 92% of the whole screen while only a third of it was visible,
+     which is what put the title out of reach. */
+  margin: auto;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 20px;
   width: min(560px, 100%);
-  max-height: 92vh;
-  overflow-y: auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -569,4 +650,79 @@ a.btn {
 /* The calendar page grows a filter row between the toolbar and the grid. */
 .calpage[data-filtered='true'] {
   grid-template-rows: auto auto 1fr;
+}
+
+
+/* ---------------------- view switcher (phones only) ----------------------- */
+
+/* Above phone size the nav lists the four views, so this would be a duplicate. */
+.viewtabs {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* One segmented control rather than four separate buttons: a single track with
+     dividers reads as "pick one of these", which four floating pills did not. */
+  .viewtabs {
+    display: flex;
+    gap: 2px;
+    margin: 8px 10px 0;
+    padding: 3px;
+    border-radius: 12px;
+    background: var(--bg-elev-2);
+  }
+
+  .viewtabs__tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 4px;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: var(--font-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background 120ms ease, color 120ms ease;
+  }
+
+  .viewtabs__tab[aria-current='page'] {
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* A phone has no room for a 52px time gutter beside seven day columns. */
+  .timegrid {
+    --gutter: 34px;
+  }
+
+  /* The toolbar's five controls have to survive 390px: the title gives up its
+     space first, and it already truncates. */
+  .calpage__bar {
+    gap: 4px;
+    padding: 8px 10px 4px;
+    border-bottom: none;
+  }
+
+  .calpage__title {
+    font-size: var(--font-md);
+    font-weight: 700;
+  }
+
+  /* Fixed-size controls; the title truncates instead of pushing them off. */
+  .calpage__bar .iconbtn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+  }
+
+  .peoplefilter {
+    padding: 8px 10px;
+    border-bottom: none;
+  }
+
+  /* The grid is the content -- give it the only hard edge on the screen. */
+  .calpage__body {
+    border-top: 1px solid var(--border);
+  }
 }

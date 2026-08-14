@@ -94,6 +94,31 @@
   font-weight: 700;
 }
 
+/* --------------------- calendars, grouped by account ---------------------- */
+
+.calgroup {
+  margin-top: 18px;
+}
+
+.calgroup:first-of-type {
+  margin-top: 8px;
+}
+
+/* A quiet heading: it labels the rows below without competing with the panel
+   title or with the calendar names themselves. */
+.calgroup__head {
+  margin: 0 0 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .swatch {
   width: 28px;
   height: 28px;
@@ -279,6 +304,24 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Reports whether a calendar syncs; it follows the claim, so it is deliberately
+   not a button. Sized like one so the rows still line up. */
+.syncstate {
+  display: inline-grid;
+  place-items: center;
+  min-height: var(--touch);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+}
+
+.syncstate[data-on='true'] {
+  color: var(--accent);
 }
 
 .listcard__actions {

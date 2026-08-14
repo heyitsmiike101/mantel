@@ -11,15 +11,18 @@ from sqlalchemy import inspect
 from app.db import engine
 from app.models import Base, Calendar, Event, LinkedAccount, User
 from app.schema_sync import SchemaUpgradeError, sync
-from app.services import google_sync, homeassistant, httpcache, recurrence
+from app.services import homeassistant, httpcache, recurrence
+from app.services import sync_engine as google_sync
 from app.services.crypto import encrypt, feed_token
+from app.services.providers.google import GoogleProvider
 
 
 @pytest.fixture
 def fake(monkeypatch):
     f = FakeGoogle()
-    monkeypatch.setattr(google_sync, "client_factory", f)
-    monkeypatch.setattr(google_sync, "access_token_for", lambda db, a: "t")
+    monkeypatch.setattr(
+        google_sync, "provider_factory", lambda db, a: GoogleProvider(client=f)
+    )
     return f
 
 

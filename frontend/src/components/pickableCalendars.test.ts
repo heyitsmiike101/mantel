@@ -8,6 +8,7 @@ const cal = (over: Partial<CalendarInfo> & { id: number; name: string }): Calend
     google_calendar_id: null,
     linked_account_id: 1,
     account_email: 'a@example.com',
+    account_provider: 'google',
     claimed_by_user_id: null,
     color: '#fff',
     sync_enabled: true,
@@ -53,6 +54,26 @@ describe('pickableCalendars', () => {
     ]
     expect(pickableCalendars(list, 2).map((c) => c.name)).toEqual(['On', 'Since switched off'])
     expect(pickableCalendars(list, null).map((c) => c.name)).toEqual(['On'])
+  })
+
+  it('treats an iCloud calendar exactly like a Google one', () => {
+    // The rule is about whether an event can actually reach the far end, which is
+    // the same question for both. Nothing here should ever branch on the provider.
+    const list = [
+      cal({ id: 1, name: 'Home', account_provider: 'icloud' }),
+      cal({ id: 2, name: 'Off', account_provider: 'icloud', sync_enabled: false }),
+      cal({ id: 3, name: 'Shared', account_provider: 'icloud', writable: false }),
+    ]
+    expect(pickableCalendars(list).map((c) => c.name)).toEqual(['Home'])
+  })
+
+  it('offers both services side by side', () => {
+    const list = [
+      cal({ id: 1, name: 'Gmail', account_provider: 'google' }),
+      cal({ id: 2, name: 'iCloud', account_provider: 'icloud' }),
+      cal({ id: 3, name: 'Just here', is_local: true, sync_enabled: false }),
+    ]
+    expect(pickableCalendars(list).map((c) => c.name)).toEqual(['Gmail', 'iCloud', 'Just here'])
   })
 
   it('matches the live instance: 5 of 12 calendars are pickable', () => {

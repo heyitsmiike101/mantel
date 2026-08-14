@@ -1,14 +1,22 @@
 """Recurring event expansion.
 
-Only *local* calendars are expanded here. Google-backed recurring events are
-requested with `singleEvents=true`, so Google has already expanded them into
-individual instances by the time they reach us -- expanding them again would
-double every occurrence.
+Whether a series is expanded here depends on whether its provider expands it
+first. Google is asked for `singleEvents=true` and hands back the individual
+instances, so expanding those again would double every occurrence. CalDAV hands
+back the master with its RRULE and leaves the expansion to the client, which is
+what this module does -- the same as for a calendar that lives only in this app.
 
 That asymmetry is the reason for `Event.is_master`: a locally created recurring
 event on a Google calendar is stored once as a master, pushed as an RRULE, and
-then hidden from queries so Google's own expanded instances are the only thing
-displayed. See `google_sync._push_one`.
+then hidden from queries so Google's own instances are the only thing displayed.
+An iCloud series stays visible and is expanded below. See
+`sync_engine._push_one` and `CalendarProvider.expands_recurrence`.
+
+Occurrences can also be *removed* from a series without the rule changing: an
+EXDATE on the master, or an occurrence somebody moved, which iCloud sends as a
+separate component and this app stores as its own row. Both arrive here as
+`Event.exdates`, and both must be skipped or the calendar shows an event that was
+cancelled and, in the second case, shows it twice.
 """
 
 from datetime import datetime, timedelta
@@ -119,6 +127,7 @@ def occurrences(event: Event, window_start: datetime, window_end: datetime) -> l
 
     duration = event.end_at - event.start_at
     search_from = window_start - duration
+    excluded = excluded_starts(event)
 
     try:
         # Defensive: rules stored before normalisation existed, or written straight
@@ -131,11 +140,35 @@ def occurrences(event: Event, window_start: datetime, window_end: datetime) -> l
     for occurrence in rule:
         if occurrence >= window_end:
             break
-        if occurrence > search_from:
+        if occurrence > search_from and occurrence not in excluded:
             found.append(occurrence)
             if len(found) >= MAX_OCCURRENCES:
                 break
     return found
+
+
+def excluded_starts(event: Event) -> set[datetime]:
+    """Occurrences that must not be drawn, from `Event.exdates`.
+
+    Stored as a comma-separated list of naive-UTC ISO timestamps rather than its
+    own table: it is read only alongside the event it belongs to, and never
+    queried on.
+    """
+    if not event.exdates:
+        return set()
+
+    out: set[datetime] = set()
+    for piece in event.exdates.split(","):
+        piece = piece.strip()
+        if not piece:
+            continue
+        try:
+            out.add(datetime.fromisoformat(piece))
+        except ValueError:
+            # One unreadable exclusion must not take the whole series with it; the
+            # cost of skipping it is a single extra occurrence on screen.
+            continue
+    return out
 
 
 def materialise(event: Event, window_start: datetime, window_end: datetime) -> list[Event]:

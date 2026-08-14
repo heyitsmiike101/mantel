@@ -4,15 +4,17 @@ import pytest
 from fake_google import FakeGoogle, gevent
 
 from app.models import Calendar, Event, LinkedAccount, User
-from app.services import google_sync
+from app.services import sync_engine as google_sync
 from app.services.crypto import encrypt
+from app.services.providers.google import GoogleProvider
 
 
 @pytest.fixture
 def fake(monkeypatch):
     f = FakeGoogle()
-    monkeypatch.setattr(google_sync, "client_factory", f)
-    monkeypatch.setattr(google_sync, "access_token_for", lambda db, account: "fake-token")
+    monkeypatch.setattr(
+        google_sync, "provider_factory", lambda db, account: GoogleProvider(client=f)
+    )
     return f
 
 

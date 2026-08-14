@@ -18,10 +18,9 @@ class FakeGoogle:
         self.last_time_min: str | None = None
         self.last_sync_token: str | None = None
 
-    # -- the interface google_sync depends on --------------------------------
-
-    def __call__(self, access_token: str):  # used as client_factory
-        return self
+    # -- the interface GoogleCalendarClient presents ---------------------------
+    # This sits *below* the provider boundary, so tests using it also exercise the
+    # JSON translation in GoogleProvider rather than skipping past it.
 
     def list_calendars(self) -> list[dict]:
         return self.calendars

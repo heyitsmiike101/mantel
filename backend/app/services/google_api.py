@@ -1,17 +1,15 @@
 import httpx
 
+from .providers.base import ProviderError, SyncTokenExpired
+
 BASE = "https://www.googleapis.com/calendar/v3"
 
+# Google's failures are just provider failures. Keeping the old name as an alias
+# means one `except` in the engine covers every provider, while the call sites and
+# tests that say "GoogleApiError" still read like they mean it.
+GoogleApiError = ProviderError
 
-class GoogleApiError(Exception):
-    def __init__(self, status: int, message: str):
-        super().__init__(f"{status}: {message}")
-        self.status = status
-        self.message = message
-
-
-class SyncTokenExpired(GoogleApiError):
-    """Google returns 410 when a stored syncToken is too old; the only fix is a full resync."""
+__all__ = ["BASE", "GoogleApiError", "GoogleCalendarClient", "SyncTokenExpired"]
 
 
 class GoogleCalendarClient:
