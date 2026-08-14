@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { providerLabel } from '../../api/providers'
+import { groupCalendarsBySource } from './groupCalendars'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { ApiTab } from './ApiTab'
@@ -237,7 +238,10 @@ function CalendarsTab() {
       </div>
       {found && <p className="banner">{found}</p>}
 
-      {calendars.map((c) => {
+      {groupCalendarsBySource(calendars).map((group) => (
+        <section key={group.key} className="calgroup">
+          <h3 className="calgroup__head">{group.label}</h3>
+          {group.calendars.map((c) => {
         const sync = status?.calendars.find((s) => s.calendar_id === c.id)
         return (
           <div key={c.id} className="row">
@@ -245,10 +249,14 @@ function CalendarsTab() {
             <div className="row__name row__name--static">
               <div>{c.name}</div>
               <div className="hint">
-                {c.is_local ? 'Local calendar' : `${providerName(c)} · ${c.account_email ?? ''}`}
-                {!c.writable && ' · read-only'}
-                {sync?.last_synced_at && ` · synced ${timeAgo(sync.last_synced_at)}`}
-                {sync?.sync_error && ` · ${sync.sync_error.slice(0, 70)}`}
+                {/* The source is the heading now, so a row only says what differs. */}
+                {[
+                  !c.writable && 'read-only',
+                  sync?.last_synced_at && `synced ${timeAgo(sync.last_synced_at)}`,
+                  sync?.sync_error && sync.sync_error.slice(0, 70),
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || '\u00a0'}
               </div>
             </div>
             <select
@@ -290,7 +298,9 @@ function CalendarsTab() {
             )}
           </div>
         )
-      })}
+          })}
+        </section>
+      ))}
 
       <div className="row">
         <input

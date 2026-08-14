@@ -41,7 +41,8 @@ export function CalendarPage() {
   const events = allEvents.filter((e) => isVisible(e.user_id))
   const swipe = useSwipe((dir) => setAnchor((a) => step(kind ?? 'week', a, dir)))
 
-  if (!kind) return <Navigate to="/calendar/week" replace />
+  // e.g. /calendar/fortnight. Same landing place as the app's front door.
+  if (!kind) return <Navigate to="/calendar/today" replace />
 
   const openEvent = (e: CalendarEvent) => {
     setEditing(e)
