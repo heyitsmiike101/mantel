@@ -1,46 +1,15 @@
 name: Release
 
-# Tests run on every push and every pull request -- a tag-only trigger meant a
-# contributor's PR could be merged without CI ever having looked at it. The
-# image job below is still gated on a v* tag, so ordinary pushes only test.
+# Publishes the image on a push to main whose VERSION is new, or a hand-pushed v* tag.
+# No CI test job: tests run locally on request (Actions minutes budget).
 on:
   push:
     branches: [main]
     tags: ['v*']
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Backend tests
-        working-directory: backend
-        run: |
-          pip install -e ".[dev]"
-          ruff check app tests
-          python -m pytest -q
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Frontend tests
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run lint
-          npm test
-
   image:
-    needs: test
     # Publishing is part of merging, not a separate thing to remember. A push to main
     # whose VERSION has not been released yet publishes it and tags the commit; a push
     # whose VERSION is already tagged does nothing, so ordinary commits are free. A v*
