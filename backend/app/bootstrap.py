@@ -4,6 +4,11 @@ from sqlalchemy.orm import Session
 from .models import AppSetting, Calendar
 from .services.google_config import seed_from_env
 
+# Colour themes the frontend ships (frontend/src/styles/themes.ts). Validated here so a
+# typo from an API client is a 400 rather than a stored value the CSS silently ignores,
+# leaving every screen in the house on the default with no hint why.
+THEMES = ("midnight", "daylight", "hearth")
+
 DEFAULT_SETTINGS: dict[str, object] = {
     "first_day_of_week": 0,  # 0=Sunday, 1=Monday
     "time_format_24h": False,
@@ -11,6 +16,7 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "default_view": "week",
     "kiosk_default_route": "/calendar/week",
     "display_scale": "normal",  # normal | large | wall
+    "theme": "midnight",  # see THEMES
     "day_start_hour": 7,
     "day_end_hour": 22,
     # A shortcut to somewhere else in the house -- another dashboard, a camera

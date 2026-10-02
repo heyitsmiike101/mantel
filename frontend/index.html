@@ -13,6 +13,18 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" href="/icon-192.png" type="image/png" />
     <title>Family Calendar</title>
+    <script>
+      // Paint the remembered theme before React mounts, so a light theme does not flash
+      // navy on every reload. Keep the key and ids in step with src/theme.ts.
+      try {
+        var t = localStorage.getItem('mantel.theme')
+        if (t === 'midnight' || t === 'daylight' || t === 'hearth') {
+          document.documentElement.dataset.theme = t
+          var m = document.querySelector('meta[name="theme-color"]')
+          if (m) m.setAttribute('content', { midnight: '#0f172a', daylight: '#f6f1e7', hearth: '#1c1613' }[t])
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

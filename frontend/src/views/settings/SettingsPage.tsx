@@ -11,6 +11,7 @@ import { ICloudTab } from './ICloudTab'
 import { ScreenTab } from './ScreenTab'
 import { SharingTab } from './SharingTab'
 import { WeatherTab } from './WeatherTab'
+import { THEMES } from '../../theme'
 import { PALETTE } from './palette'
 import { timeAgo } from './timeAgo'
 
@@ -349,6 +350,36 @@ function DisplayTab() {
             {s}
           </button>
         ))}
+      </div>
+
+      <div className="row row--stack">
+        <div className="row__name row__name--static">Colour theme</div>
+        <div className="themepick" role="group" aria-label="Colour theme">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              className="themeswatch"
+              aria-pressed={settings.theme === t.id}
+              aria-current={settings.theme === t.id ? 'true' : undefined}
+              onClick={() => save.mutate({ theme: t.id })}
+              title={t.blurb}
+              // A swatch shows its own theme, not the live one, so these are the one
+              // place colours are written inline: the point is to preview.
+              style={{ background: t.palette.bg, borderColor: t.palette.border, color: t.palette.text }}
+            >
+              <span className="themeswatch__chips" aria-hidden>
+                <span style={{ background: t.palette.bgElev2 }} />
+                <span style={{ background: t.palette.accent }} />
+              </span>
+              <span
+                className="themeswatch__card"
+                aria-hidden
+                style={{ background: t.palette.bgElev, borderColor: t.palette.border }}
+              />
+              <span className="themeswatch__name">{t.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="row">

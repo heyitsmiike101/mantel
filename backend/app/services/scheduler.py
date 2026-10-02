@@ -4,7 +4,7 @@ import logging
 
 from ..config import get_settings
 from ..db import SessionLocal
-from . import sync_engine
+from . import sync_engine, update_check
 from .pullsignal import register_pull_signal
 from .pushqueue import register_push_signal
 
@@ -45,6 +45,28 @@ async def _push_loop(signal: asyncio.Event) -> None:
             log.exception("Scheduled push failed")
 
 
+# Long enough that a container restart storm or slow boot isn't made slower by an outbound
+# request, short enough that a fresh install shows its answer the same session.
+UPDATE_CHECK_STARTUP_DELAY_SECONDS = 60
+
+
+async def _update_check_loop() -> None:
+    await asyncio.sleep(UPDATE_CHECK_STARTUP_DELAY_SECONDS)
+    interval = max(1, get_settings().update_check_interval_hours) * 3600
+    while True:
+        try:
+            await asyncio.to_thread(_update_check_once)
+        except Exception:
+            # check_now already swallows network errors; this covers the database.
+            log.exception("Scheduled update check failed")
+        await asyncio.sleep(interval)
+
+
+def _update_check_once() -> None:
+    with SessionLocal() as db:
+        update_check.check_now(db)
+
+
 def _pull_once() -> int:
     with SessionLocal() as db:
         return sync_engine.pull_all(db)
@@ -56,17 +78,25 @@ def _push_once() -> int:
 
 
 def start(loop: asyncio.AbstractEventLoop) -> list[asyncio.Task]:
+    # Separate from the sync flag: pausing calendar sync says nothing about wanting to
+    # hear about a new release.
+    tasks: list[asyncio.Task] = []
+    if get_settings().update_check_enabled:
+        tasks.append(asyncio.create_task(_update_check_loop()))
+    else:
+        log.info("Update check is disabled (UPDATE_CHECK_ENABLED=false)")
     if not get_settings().sync_enabled:
         log.info("Google sync is disabled (SYNC_ENABLED=false)")
-        return []
+        return tasks
     push_signal = asyncio.Event()
     register_push_signal(push_signal, loop)
     pull_signal = asyncio.Event()
     register_pull_signal(pull_signal, loop)
-    return [
+    tasks += [
         asyncio.create_task(_pull_loop(pull_signal)),
         asyncio.create_task(_push_loop(push_signal)),
     ]
+    return tasks
 
 
 async def stop(tasks: list[asyncio.Task]) -> None:

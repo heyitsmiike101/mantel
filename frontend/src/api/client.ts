@@ -40,4 +40,9 @@ export const api = {
 export interface VersionInfo {
   version: string
   build_time: string
+  // Null/false until the server's daily GitHub check has succeeded.
+  latest_version?: string | null
+  update_available?: boolean
+  checked_at?: string | null
+  release_url?: string | null
 }

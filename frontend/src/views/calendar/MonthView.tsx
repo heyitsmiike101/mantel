@@ -1,6 +1,7 @@
 import { addDays, differenceInCalendarMonths, format, isSameMonth, isToday } from 'date-fns'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CalendarEvent } from '../../api/types'
+import { useLightSnap } from '../../hooks/useLightSnap'
 import { FULL_RENDER_PAD, monthsIn, rangeFor, type MonthWindow } from './dateRange'
 import { overlapsDay } from './overlap'
 
@@ -32,22 +33,6 @@ const monthKey = (m: Date) => format(m, 'yyyy-MM')
  *  about two years out, long before a normal scroll could reach the end. */
 const EXTEND_SCREENS = 3
 
-/** "Near the edge of a month" for the light snap: within 12% of a month's height of a month
- *  boundary, in either direction. Wide enough that a slightly-off stop tidies itself up,
- *  narrow enough that stopping mid-way (to read the middle of a month) stays put. */
-const SNAP_FRACTION = 0.12
-
-/** Quiet period after the last scroll event before we treat the scroll as settled, for
- *  browsers without the `scrollend` event. */
-const SETTLE_MS = 150
-
-/** A button-driven scroll is "in flight" until it arrives or this long passes, so the
- *  snap never fights it. */
-const PROGRAMMATIC_MS = 1500
-
-const prefersReducedMotion = () =>
-  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-
 export function MonthView({
   window: win,
   initialMonth,
@@ -69,15 +54,10 @@ export function MonthView({
   // Mirrors `visible` for rendering: only months near it draw their cells. State, so it
   // re-renders -- but it only changes when the month in view does, not per scroll frame.
   const [visibleMonth, setVisibleMonth] = useState(initialMonth)
-  // Set while a requested (button) scroll is travelling; the snap stays out of its way.
-  const inflight = useRef<{ top: number; until: number } | null>(null)
   // Set when we have asked for more months and they have not arrived yet, so a burst of
   // scroll events adds one batch, not one per event.
   const extending = useRef(false)
   const prev = useRef<{ first: number; height: number } | null>(null)
-  // Scroll position when the last scroll settled, i.e. where the next one starts. The
-  // light snap needs it to tell the boundary a scroll left from the one it reached for.
-  const rest = useRef(0)
   // Callbacks change identity every render; the scroll listener must not be re-bound
   // each time (a re-bind mid-fling drops events), so it reads them through a ref.
   const cb = useRef({ onVisibleMonthChange, onExtend })
@@ -85,6 +65,21 @@ export function MonthView({
 
   const blockFor = (m: Date | number) =>
     scroller.current?.querySelector<HTMLElement>(`[data-month="${monthKey(new Date(m))}"]`) ?? null
+
+  // Every block is the same height, so "which boundary is next" is a division.
+  const { rest, scrollTo } = useLightSnap(scroller, {
+    axis: 'y',
+    measure: () => {
+      const el = scroller.current
+      const blocks = el?.querySelectorAll<HTMLElement>('[data-month]')
+      if (!el || !blocks || blocks.length === 0) return null
+      return {
+        size: blocks[0].offsetHeight || el.clientHeight,
+        count: blocks.length,
+        at: (i) => blocks[i].offsetTop,
+      }
+    },
+  })
 
   // Before paint, so there is never a frame showing the wrong scroll position. Handles
   // two cases: opening on the right month, and months being added above the viewport.
@@ -96,6 +91,8 @@ export function MonthView({
     if (!prev.current) {
       const target = blockFor(initialMonth)
       if (target) el.scrollTop = target.offsetTop
+      // The snap measured its starting point before this jump, in an earlier effect.
+      rest.current = el.scrollTop
     } else if (first < prev.current.first) {
       // Months were prepended. Everything the user is looking at just moved down by
       // the height we added; move the scroll position with it or the page jumps.
@@ -114,12 +111,7 @@ export function MonthView({
     if (!scrollRequest) return
     const target = blockFor(scrollRequest.month)
     if (!target) return
-    // Someone who asked their OS not to animate gets an instant jump.
-    inflight.current = { top: target.offsetTop, until: Date.now() + PROGRAMMATIC_MS }
-    scroller.current?.scrollTo({
-      top: target.offsetTop,
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    })
+    scrollTo(target.offsetTop)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollRequest])
 
@@ -168,95 +160,11 @@ export function MonthView({
       }
     }
 
-    // Light snap: once scrolling has settled, a month boundary within SNAP_FRACTION of a
-    // screen pulls the view onto it. Done here rather than with CSS scroll-snap, whose
-    // `proximity` mode in Chromium is far from light and traps slow wheel scrolling.
-    let touching = false
-    // The scroll being settled came from a finger (set on touchstart, cleared by settle).
-    let byTouch = false
-    let timer = 0
-    rest.current = el.scrollTop
-    const settle = () => {
-      timer = 0
-      if (touching) return
-      const flight = inflight.current
-      if (flight) {
-        // A button scroll is travelling: wait for it to arrive (or time out).
-        if (Math.abs(el.scrollTop - flight.top) > 1 && Date.now() < flight.until) return
-        inflight.current = null
-      }
-      const h = el.clientHeight
-      const blocks = el.querySelectorAll<HTMLElement>('[data-month]')
-      if (h === 0 || blocks.length === 0) return
-      // Where this scroll started matters. A mouse-wheel notch is ~100px, under the snap
-      // distance, and each notch settles on its own -- so snapping to the *nearest*
-      // boundary pulled every notch straight back to the month it left, and on a tall
-      // portrait screen the wheel could not get anywhere. Only boundaries this scroll
-      // reached for count: the one ahead of it, or one it crossed and slightly overshot.
-      // Never the one it started on.
-      const from = rest.current
-      const st = el.scrollTop
-      const bh = blocks[0].offsetHeight || h
-      const below = Math.min(blocks.length - 1, Math.max(0, Math.floor(st / bh)))
-      const behindTop = blocks[below].offsetTop
-      const aheadTop = blocks[Math.min(blocks.length - 1, below + 1)].offsetTop
-      let target: number | null = null
-      if (byTouch) {
-        // A finger moves continuously rather than in notches, so a short drag let go
-        // near where it started should settle back: plain nearest boundary.
-        byTouch = false
-        const near = st - behindTop <= aheadTop - st ? behindTop : aheadTop
-        if (Math.abs(near - st) <= bh * SNAP_FRACTION) target = near
-      } else if (st > from) {
-        if (aheadTop - st <= bh * SNAP_FRACTION) target = aheadTop
-        else if (from < behindTop - 1 && st - behindTop <= bh * SNAP_FRACTION) target = behindTop
-      } else if (st < from) {
-        if (st - behindTop <= bh * SNAP_FRACTION) target = behindTop
-        else if (from > aheadTop + 1 && aheadTop - st <= bh * SNAP_FRACTION) target = aheadTop
-      }
-      // > 1px also stops the snap re-triggering itself once it has arrived.
-      if (target !== null && Math.abs(target - st) > 1) {
-        rest.current = target
-        el.scrollTo({ top: target, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
-      } else {
-        rest.current = st
-      }
-    }
-    const settleSoon = () => {
-      window.clearTimeout(timer)
-      timer = window.setTimeout(settle, SETTLE_MS)
-    }
-    const hasScrollEnd = 'onscrollend' in window
-
     // rAF-throttled: scroll fires far more often than the screen repaints.
     const onScroll = () => {
       if (!frame.current) frame.current = requestAnimationFrame(check)
-      if (!hasScrollEnd) settleSoon()
-    }
-    // Touch events, not pointer events: once the browser takes a touch over to scroll it
-    // fires pointercancel straight away, which would look like the finger lifting while
-    // it is still on the glass. touchend/touchcancel only come when it really leaves.
-    const onDown = () => {
-      inflight.current = null
-      touching = true
-      byTouch = true
-    }
-    const onUp = () => {
-      touching = false
-      // A drag that ends without momentum may not produce another scroll event.
-      settleSoon()
-    }
-    // Grabbing the wheel mid-button-scroll hands control back to the user.
-    const onWheel = () => {
-      inflight.current = null
     }
     el.addEventListener('scroll', onScroll, { passive: true })
-    if (hasScrollEnd) el.addEventListener('scrollend', settle)
-    el.addEventListener('touchstart', onDown, { passive: true })
-    el.addEventListener('touchend', onUp, { passive: true })
-    el.addEventListener('touchcancel', onUp, { passive: true })
-    el.addEventListener('wheel', onWheel, { passive: true })
-
     // Rotating the wall display or resizing the window changes the block height, which
     // would leave scrollTop pointing between months. Re-pin the month we were on.
     const ro =
@@ -273,12 +181,6 @@ export function MonthView({
     onScroll()
     return () => {
       el.removeEventListener('scroll', onScroll)
-      el.removeEventListener('scrollend', settle)
-      el.removeEventListener('touchstart', onDown)
-      el.removeEventListener('touchend', onUp)
-      el.removeEventListener('touchcancel', onUp)
-      el.removeEventListener('wheel', onWheel)
-      window.clearTimeout(timer)
       ro?.disconnect()
       if (frame.current) cancelAnimationFrame(frame.current)
       frame.current = 0

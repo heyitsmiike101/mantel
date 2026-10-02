@@ -84,6 +84,23 @@ Default `true`. Set to `false` to pause all syncing, Google and iCloud alike, wi
 anyone — useful
 while debugging or if you're travelling with the display.
 
+### `UPDATE_CHECK_ENABLED`
+
+Default `true`. Once a day (and about a minute after startup) the server asks GitHub whether a
+newer `vX.Y.Z` release tag exists, and the nav badge then shows "Update available". It only
+reports; nothing is downloaded or installed. Set to `false` and the server makes no outbound
+request for this at all, independent of `SYNC_ENABLED`.
+
+### `UPDATE_CHECK_REPO`
+
+Default `heyitsmiike101/mantel`. The GitHub `owner/name` whose tags are checked. Point it at a
+fork if you publish your own releases.
+
+### `UPDATE_CHECK_INTERVAL_HOURS`
+
+Default `24`. Hours between checks. GitHub allows 60 unauthenticated requests per hour, so
+this is nowhere near a limit.
+
 ### `DATABASE_URL`
 
 Default `sqlite:////data/family.db` (inside the container's `/data` volume).

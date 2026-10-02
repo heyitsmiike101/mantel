@@ -2,14 +2,24 @@ import { differenceInCalendarDays } from 'date-fns'
 import { describe, expect, it } from 'vitest'
 import type { CalendarEvent } from '../../api/types'
 import {
+  DAY_EXTEND_BATCH,
+  DAY_INITIAL_PAD,
   MONTH_EXTEND_BATCH,
   MONTH_INITIAL_PAD,
+  dayWindow,
+  dayWindowHas,
+  daysIn,
   eventsRangeAround,
+  extendDayWindow,
   extendWindow,
+  firstVisibleIndex,
   monthsIn,
   monthWindow,
   rangeFor,
   step,
+  stripFetchRange,
+  stripStartFor,
+  stripStep,
   windowHas,
   windowRange,
 } from './dateRange'
@@ -168,5 +178,113 @@ describe('eventsRangeAround', () => {
     expect(eventsRangeAround(at('2026-10-01T00:00:00'), 0)).toEqual(
       eventsRangeAround(at('2026-10-31T23:00:00'), 0),
     )
+  })
+})
+
+describe('day window', () => {
+  it('spans the initial pad either side of the opening day', () => {
+    const days = daysIn(dayWindow(at('2026-10-17T15:00:00')))
+    expect(days).toHaveLength(2 * DAY_INITIAL_PAD + 1)
+    expect(days[DAY_INITIAL_PAD]).toEqual(new Date(2026, 9, 17))
+  })
+
+  it('has one entry per calendar day across a daylight-saving change', () => {
+    // 2026-11-01 is 25 hours long in US zones; a fixed 24h step would repeat or skip a date.
+    const days = daysIn({ first: new Date(2026, 9, 30), last: new Date(2026, 10, 3) })
+    expect(days.map((d) => d.getDate())).toEqual([30, 31, 1, 2, 3])
+  })
+
+  it('knows whether a day is inside it, whatever time of day is passed', () => {
+    const win = dayWindow(at('2026-10-17T12:00:00'), 3, 3)
+    expect(dayWindowHas(win, at('2026-10-20T23:30:00'))).toBe(true)
+    expect(dayWindowHas(win, at('2026-10-21T00:00:00'))).toBe(false)
+    expect(dayWindowHas(win, at('2026-10-13T23:59:00'))).toBe(false)
+  })
+
+  it('extends one side only, and not at all for zero', () => {
+    const win = dayWindow(at('2026-10-17T12:00:00'), 3, 3)
+    expect(extendDayWindow(win, 'start', 2).first).toEqual(new Date(2026, 9, 12))
+    expect(extendDayWindow(win, 'start', 2).last).toEqual(win.last)
+    expect(extendDayWindow(win, 'end', 2).last).toEqual(new Date(2026, 9, 22))
+    expect(extendDayWindow(win, 'end', 0)).toBe(win)
+  })
+
+  it('grows by whole weeks, so its edges stay on the same weekday', () => {
+    expect(DAY_EXTEND_BATCH % 7).toBe(0)
+  })
+})
+
+describe('strip navigation', () => {
+  // Thursday 15 Oct 2026.
+  const thu = new Date(2026, 9, 15, 14, 30)
+
+  it('opens Week on the week start for either first weekday', () => {
+    expect(stripStartFor('week', thu, 0)).toEqual(new Date(2026, 9, 11))
+    expect(stripStartFor('week', thu, 1)).toEqual(new Date(2026, 9, 12))
+  })
+
+  it('opens 3 Day on the day itself, at midnight', () => {
+    expect(stripStartFor('3day', thu, 0)).toEqual(new Date(2026, 9, 15))
+  })
+
+  it('steps Week by seven days from a week start', () => {
+    const sun = new Date(2026, 9, 11)
+    expect(stripStep('week', sun, 1, 0)).toEqual(new Date(2026, 9, 18))
+    expect(stripStep('week', sun, -1, 0)).toEqual(new Date(2026, 9, 4))
+  })
+
+  it('lands Week on a week start even when the view was left mid-week', () => {
+    // Otherwise a scroll that stopped on a Thursday would make the arrows walk
+    // Thursday to Thursday and never show a whole week again.
+    for (const weekStart of [0, 1] as const) {
+      for (const dir of [1, -1] as const) {
+        expect(stripStep('week', thu, dir, weekStart).getDay()).toBe(weekStart)
+      }
+    }
+    expect(stripStep('week', thu, 1, 0)).toEqual(new Date(2026, 9, 18))
+    expect(stripStep('week', thu, -1, 0)).toEqual(new Date(2026, 9, 4))
+  })
+
+  it('steps 3 Day by exactly three days', () => {
+    expect(stripStep('3day', new Date(2026, 9, 15), 1, 0)).toEqual(new Date(2026, 9, 18))
+    expect(stripStep('3day', new Date(2026, 9, 15), -1, 0)).toEqual(new Date(2026, 9, 12))
+  })
+})
+
+describe('firstVisibleIndex', () => {
+  it('is the column whose left edge is at or past the scroll position', () => {
+    expect(firstVisibleIndex(0, 100)).toBe(0)
+    expect(firstVisibleIndex(300, 100)).toBe(3)
+    expect(firstVisibleIndex(301.5, 100)).toBe(4)
+  })
+
+  it('forgives a snap that landed a pixel short', () => {
+    expect(firstVisibleIndex(299.4, 100)).toBe(3)
+  })
+
+  it('never goes negative or divides by zero', () => {
+    expect(firstVisibleIndex(-50, 100)).toBe(0)
+    expect(firstVisibleIndex(500, 0)).toBe(0)
+  })
+})
+
+describe('stripFetchRange', () => {
+  it('covers the visible days plus a span either side, wherever in its bucket the view is', () => {
+    for (const span of [3, 7]) {
+      for (let offset = 0; offset < 40; offset++) {
+        const start = new Date(2026, 9, 1 + offset)
+        const r = stripFetchRange(start, span)
+        expect(r.start <= new Date(2026, 9, 1 + offset - span), `span ${span} +${offset} start`).toBe(true)
+        expect(r.end >= new Date(2026, 9, 1 + offset + 2 * span), `span ${span} +${offset} end`).toBe(true)
+      }
+    }
+  })
+
+  it('keeps the same range (so the same query) while the view stays in one bucket', () => {
+    expect(stripFetchRange(new Date(2026, 9, 14), 7)).toEqual(stripFetchRange(new Date(2026, 9, 14, 18), 7))
+    const starts = new Set<number>()
+    for (let d = 0; d < 7; d++) starts.add(stripFetchRange(new Date(2026, 9, 12 + d), 7).start.getTime())
+    // Seven consecutive first-days can touch two buckets, never more.
+    expect(starts.size).toBeLessThanOrEqual(2)
   })
 })

@@ -4,7 +4,11 @@
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: #000;
+  background: var(--saver-bg);
+  color: var(--saver-text);
+  /* The clock screen reads --text-dim; pointing it at the saver palette keeps its
+     secondary text legible on the always-dark ground whatever the theme. */
+  --text-dim: var(--saver-dim);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -100,7 +104,7 @@
   align-items: center;
   gap: 14px;
   font-size: calc(1.25rem * var(--scale));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--saver-rule);
   padding-bottom: 8px;
 }
 
@@ -128,14 +132,14 @@
 /* -------------------------------- sleep ----------------------------------- */
 
 .saver--sleep {
-  background: #000;
+  background: var(--saver-bg);
 }
 
 .saver__sleeptime {
   /* Just readable in a dark hallway, dim enough not to light the room. */
   font-size: calc(5rem * var(--scale));
   font-weight: 200;
-  color: #2a2a2a;
+  color: var(--saver-clock);
   font-variant-numeric: tabular-nums;
 }
 

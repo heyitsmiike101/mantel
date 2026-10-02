@@ -1,14 +1,42 @@
 :root {
   --scale: 1;
 
+  /* Midnight, the original look and the default. Every theme below overrides this
+     same set, so a component only ever names a token, never a colour. */
   --bg: #0f172a;
   --bg-elev: #1e293b;
   --bg-elev-2: #334155;
   --border: #334155;
   --text: #f1f5f9;
-  --text-dim: #94a3b8;
+  /* Was #94a3b8, which is 4.04:1 on --bg-elev-2 -- under AA for body text. */
+  --text-dim: #a3b1c6;
   --accent: #38bdf8;
   --danger: #f87171;
+
+  /* Text on a solid --accent fill (primary buttons, the today badge). */
+  --on-accent: #06283a;
+  /* Text on an event chip or person chip. The fill is the person's own colour and is
+     the same in every theme, so the ink must stay dark even on a dark theme. */
+  --chip-ink: #0b1220;
+  /* The translucent accent fills: today's column, a pressed slot, a month cell. */
+  --accent-faint: rgba(56, 189, 248, 0.05);
+  --accent-wash: rgba(56, 189, 248, 0.07);
+  --accent-soft: rgba(56, 189, 248, 0.15);
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --danger-faint: rgba(248, 113, 113, 0.12);
+  /* Hour lines inside the time grid: quieter than --border so a day of events,
+     not its ruling, is what the eye lands on. */
+  --grid-line: rgba(51, 65, 85, 0.55);
+  /* Backdrop behind modals and popovers. */
+  --overlay: rgba(0, 0, 0, 0.65);
+  /* The screensaver is a dark screen in every theme: a lit white panel idling on a
+     wall all night is the worst case for a display that never turns off. It reads
+     --saver-* instead of --text so a light theme does not paint dark ink on it. */
+  --saver-bg: #000;
+  --saver-text: #f1f5f9;
+  --saver-dim: #a3b1c6;
+  --saver-rule: rgba(255, 255, 255, 0.1);
+  --saver-clock: #2a2a2a;
 
   --radius: 14px;
   --touch: 44px;
@@ -20,6 +48,56 @@
   --font-lg: calc(1.25rem * var(--scale));
   --font-xl: calc(1.75rem * var(--scale));
 
+  color-scheme: dark;
+}
+
+/* Daylight: for a kitchen with the sun on the wall. The ground is warm off-white,
+   not #fff, which blooms on a big panel; borders are deliberately heavier than the
+   dark themes' because hairlines wash out at a distance in bright light. */
+:root[data-theme='daylight'] {
+  --bg: #f6f1e7;
+  --bg-elev: #fcf9f2;
+  --bg-elev-2: #e9e1d0;
+  --border: #857d6c;
+  --text: #1c1a16;
+  --text-dim: #51493d;
+  --accent: #0369a1;
+  --danger: #b91c1c;
+  --on-accent: #ffffff;
+  --accent-faint: rgba(3, 105, 161, 0.06);
+  --accent-wash: rgba(3, 105, 161, 0.08);
+  --accent-soft: rgba(3, 105, 161, 0.16);
+  --danger-soft: rgba(185, 28, 28, 0.12);
+  --danger-faint: rgba(185, 28, 28, 0.09);
+  --grid-line: rgba(133, 125, 108, 0.4);
+  --overlay: rgba(28, 24, 18, 0.5);
+  --saver-bg: #0c0c0d;
+  color-scheme: light;
+}
+
+/* Hearth: a warm dark theme for a dim room at night. Brown-charcoal rather than the
+   blue-black of Midnight, with amber standing in for the sky blue. */
+:root[data-theme='hearth'] {
+  --bg: #1c1613;
+  --bg-elev: #2a211c;
+  --bg-elev-2: #3a2e27;
+  --border: #7d6b5c;
+  --text: #f5ebdc;
+  --text-dim: #c4b3a0;
+  --accent: #e8a24a;
+  --danger: #ff8f7d;
+  --on-accent: #2a1503;
+  --accent-faint: rgba(232, 162, 74, 0.06);
+  --accent-wash: rgba(232, 162, 74, 0.08);
+  --accent-soft: rgba(232, 162, 74, 0.16);
+  --danger-soft: rgba(255, 143, 125, 0.15);
+  --danger-faint: rgba(255, 143, 125, 0.12);
+  --grid-line: rgba(125, 107, 92, 0.4);
+  --overlay: rgba(10, 6, 4, 0.7);
+  --saver-bg: #0a0705;
+  --saver-text: #f5ebdc;
+  --saver-dim: #c4b3a0;
+  --saver-rule: rgba(245, 235, 220, 0.12);
   color-scheme: dark;
 }
 
@@ -169,7 +247,7 @@ button {
 
 .topbar__link:active {
   background: var(--accent);
-  color: #06283a;
+  color: var(--on-accent);
 }
 
 @media (orientation: landscape) and (min-width: 700px) {
@@ -252,12 +330,56 @@ button {
   flex: 0 0 auto;
 }
 
+/* Calm, not an alarm: same pill, accent-coloured text and outline. Stacked and allowed to
+   wrap because the landscape side rail is only ~92px wide. */
+.version-badge--update {
+  flex-direction: column;
+  gap: 1px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.version-badge__update {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.version-badge__update--short {
+  display: none;
+}
+
+.about-popover__update {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 4px 14px;
+  margin-bottom: 12px;
+}
+
+/* The browser's default link blue is unreadable on Midnight and off-palette everywhere. */
+.about-popover__update a {
+  color: var(--accent);
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.about-popover__update code {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+  color: var(--text-dim);
+}
+
 .about-popover {
   position: fixed;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay);
   z-index: 50;
   padding: 20px;
 }
@@ -322,6 +444,21 @@ button {
      and it was costing a nav slot. Still one tap away in Settings. */
   .version-badge {
     display: none;
+  }
+
+  /* ...unless there is news: then it comes back as a one-word pill. */
+  .version-badge--update {
+    display: flex;
+    padding: 4px 6px;
+  }
+
+  .version-badge--update > span:first-child,
+  .version-badge__update--long {
+    display: none;
+  }
+
+  .version-badge__update--short {
+    display: inline;
   }
 
   /* Four items across 390px, so they may be narrow -- but never narrower than a

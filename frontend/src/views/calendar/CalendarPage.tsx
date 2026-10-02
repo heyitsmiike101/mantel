@@ -1,4 +1,13 @@
-import { addMonths, differenceInCalendarMonths, format, isSameMonth, startOfMonth } from 'date-fns'
+import {
+  addDays,
+  addMonths,
+  differenceInCalendarDays,
+  differenceInCalendarMonths,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+} from 'date-fns'
 import { useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useEvents, useSettings, useUsers } from '../../api/hooks'
@@ -8,8 +17,18 @@ import { usePersonFilter } from '../../hooks/usePersonFilter'
 import { useSwipe } from '../../hooks/useSwipe'
 import { MonthView, type MonthScrollRequest } from './MonthView'
 import { TimeGridView } from './TimeGridView'
+import { TimeStripView, type StripScrollRequest } from './TimeStripView'
 import {
+  DAY_EXTEND_BATCH,
   MONTH_EXTEND_BATCH,
+  dayWindow,
+  dayWindowHas,
+  extendDayWindow,
+  isStripKind,
+  spanOf,
+  stripFetchRange,
+  stripStartFor,
+  stripStep,
   eventsRangeAround,
   extendWindow,
   isViewKind,
@@ -17,6 +36,7 @@ import {
   rangeFor,
   step,
   windowHas,
+  type DayWindow,
   type MonthWindow,
 } from './dateRange'
 
@@ -55,11 +75,38 @@ export function CalendarPage() {
   const [monthOpen, setMonthOpen] = useState(() => ({ epoch: 0, initial: startOfMonth(anchor) }))
   const [scrollReq, setScrollReq] = useState<MonthScrollRequest | null>(null)
   const reqId = useRef(0)
+  // Where the last ‹/› press is heading, for the strip (see scrollToDay).
+  const pendingDay = useRef<{ day: Date; at: number } | null>(null)
+
+  // Week and 3 Day scroll through a window of days the same way. `stripStart` is the first
+  // fully visible day: it names the toolbar title and picks what to fetch, while `anchor`
+  // only follows it so the other views open somewhere sensible.
+  const stripKind = isStripKind(kind) ? kind : null
+  const [stripOpen, setStripOpen] = useState(() => ({
+    epoch: 0,
+    initial: stripStartFor(stripKind ?? 'week', anchor, weekStartsOn),
+  }))
+  const [stripWin, setStripWin] = useState<DayWindow>(() => dayWindow(stripOpen.initial))
+  const [stripStart, setStripStart] = useState(stripOpen.initial)
+  const [stripReq, setStripReq] = useState<StripScrollRequest | null>(null)
   const [prevKind, setPrevKind] = useState(kind)
-  if (kind !== prevKind) {
+  const [prevWeekStart, setPrevWeekStart] = useState(weekStartsOn)
+  if (kind !== prevKind || weekStartsOn !== prevWeekStart) {
     setPrevKind(kind)
+    setPrevWeekStart(weekStartsOn)
     // Coming back to month view from Week/Day: open on wherever the anchor is now.
-    if (kind === 'month') openMonthAt(anchor)
+    if (kind === 'month' && kind !== prevKind) openMonthAt(anchor)
+    // Same for the strip. A change of first weekday re-opens it too: settings arrive after
+    // the first paint, and a week strip opened on Sunday would otherwise stay misaligned.
+    if (stripKind) openStripAt(anchor, stripKind)
+  }
+  function openStripAt(date: Date, k: typeof stripKind & string) {
+    const initial = stripStartFor(k, date, weekStartsOn)
+    setStripWin(dayWindow(initial))
+    setStripOpen((o) => ({ epoch: o.epoch + 1, initial }))
+    setStripStart(initial)
+    setStripReq(null)
+    pendingDay.current = null
   }
   function openMonthAt(date: Date) {
     setMonthWin(monthWindow(date))
@@ -69,13 +116,18 @@ export function CalendarPage() {
 
   // Keyed on the visible month (the anchor's month), so the range -- and the query --
   // changes once per month crossed, not per scroll frame.
-  const fetchRange = kind === 'month' ? eventsRangeAround(anchor, weekStartsOn) : range
+  const fetchRange =
+    kind === 'month'
+      ? eventsRangeAround(anchor, weekStartsOn)
+      : stripKind
+        ? stripFetchRange(stripStart, spanOf(stripKind))
+        : range
   const { data: fetched, isLoading } = useEvents(fetchRange.start, fetchRange.end)
   // A new range is a new query with no data yet; showing nothing while it loads would
   // blank every chip on screen each time the user scrolls into a new month.
   const [shown, setShown] = useState(fetched)
   if (fetched && fetched !== shown) setShown(fetched)
-  const allEvents = fetched ?? (kind === 'month' ? shown : undefined) ?? []
+  const allEvents = fetched ?? (kind === 'month' || stripKind ? shown : undefined) ?? []
   const events = allEvents.filter((e) => isVisible(e.user_id))
 
   // Where the last button press is scrolling to. The anchor only moves once a smooth
@@ -100,15 +152,45 @@ export function CalendarPage() {
     setMonthWin((w) => extendWindow(w, side))
     scrollToMonth(target)
   }
+  // The same for the strip, in days: the first day of the column the last button press is
+  // heading for, so quick taps on ‹/› add up instead of all counting from where it started.
+  const scrollToDay = (day: Date) => {
+    if (!stripKind) return
+    pendingDay.current = { day, at: Date.now() }
+    if (dayWindowHas(stripWin, day)) return setStripReq({ day, id: ++reqId.current })
+    const side = day < stripWin.first ? 'start' : 'end'
+    const edge = side === 'start' ? stripWin.first : stripWin.last
+    // A step past the edge just grows the window; a long way past it (Today from months
+    // away) starts over there rather than rendering every day between.
+    if (Math.abs(differenceInCalendarDays(day, edge)) > DAY_EXTEND_BATCH) return openStripAt(day, stripKind)
+    setStripWin((w) => extendDayWindow(w, side))
+    setStripReq({ day, id: ++reqId.current })
+  }
+  const stepStrip = (dir: 1 | -1) => {
+    if (!stripKind) return
+    const fresh = pendingDay.current && Date.now() - pendingDay.current.at < 1000
+    const from = fresh ? pendingDay.current!.day : stripStart
+    scrollToDay(stripStep(stripKind, from, dir, weekStartsOn))
+  }
+  const onVisibleStartChange = (day: Date) => {
+    if (pendingDay.current && isSameDay(day, pendingDay.current.day)) pendingDay.current = null
+    setStripStart(day)
+    // The day or week being looked at, but today if it is in view, as with the month.
+    const now = new Date()
+    setAnchor(stripKind && now >= day && now < addDays(day, spanOf(stripKind)) ? now : day)
+  }
+
   const goToday = () => {
     const now = new Date()
     setAnchor(now)
+    if (stripKind) return scrollToDay(stripStartFor(stripKind, now, weekStartsOn))
     if (kind !== 'month') return
     if (windowHas(monthWin, now)) scrollToMonth(startOfMonth(now))
     else openMonthAt(now)
   }
   const goStep = (dir: 1 | -1) => {
     if (kind === 'month') stepMonth(dir)
+    else if (stripKind) stepStrip(dir)
     else setAnchor((a) => step(kind ?? 'week', a, dir))
   }
   const onVisibleMonthChange = (month: Date) => {
@@ -137,7 +219,9 @@ export function CalendarPage() {
     <div className="calpage">
       <header className="calpage__bar">
         <div className="calpage__titlewrap">
-          <h1 className="calpage__title">{titleFor(kind, range.start, range.end, anchor)}</h1>
+          <h1 className="calpage__title">{stripKind
+              ? titleFor(kind, stripStart, addDays(stripStart, spanOf(stripKind)), anchor)
+              : titleFor(kind, range.start, range.end, anchor)}</h1>
           {isLoading && <span className="calpage__loading">…</span>}
         </div>
         {/* In the toolbar, beside the controls rather than the title, so they don't slide
@@ -200,7 +284,8 @@ export function CalendarPage() {
         ))}
       </div>
 
-      <div className="calpage__body" {...swipe}>
+      {/* Week and 3 Day scroll natively, so the swipe-to-page handler would only fight it. */}
+      <div className="calpage__body" {...(stripKind ? {} : swipe)}>
         {kind === 'month' ? (
           <MonthView
             key={monthOpen.epoch}
@@ -211,6 +296,23 @@ export function CalendarPage() {
             scrollRequest={scrollReq}
             onVisibleMonthChange={onVisibleMonthChange}
             onExtend={(side) => setMonthWin((w) => extendWindow(w, side))}
+            onSelectEvent={openEvent}
+            onSelectSlot={openSlot}
+          />
+        ) : stripKind ? (
+          <TimeStripView
+            key={`${stripKind}-${stripOpen.epoch}`}
+            kind={stripKind}
+            window={stripWin}
+            initialStart={stripOpen.initial}
+            events={events}
+            dayStartHour={settings?.day_start_hour ?? 7}
+            dayEndHour={settings?.day_end_hour ?? 22}
+            use24h={settings?.time_format_24h ?? false}
+            hourHeight={64 * SCALE_FACTOR[settings?.display_scale ?? 'normal']}
+            scrollRequest={stripReq}
+            onVisibleStartChange={onVisibleStartChange}
+            onExtend={(side) => setStripWin((w) => extendDayWindow(w, side))}
             onSelectEvent={openEvent}
             onSelectSlot={openSlot}
           />

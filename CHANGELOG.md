@@ -26,6 +26,28 @@ they cannot write back.
 
 **Chores and rewards**, and **meal planning** -- both frequently asked for, neither started.
 
+## 0.5.11
+
+**Week and 3 Day scroll sideways, forever.** Drag or swipe left and right through the days
+instead of paging; let go near the start of a day and it settles onto it. The hours still
+scroll up and down, the day names stay pinned at the top, and the times stay pinned at the
+left. The arrows still step a whole week (landing on the first day of the week) or three days,
+and Today brings you back.
+
+**Colour themes.** Settings → Display now offers Midnight (the dark look so far), Daylight (a
+warm light theme for a bright kitchen) and Hearth (a warm, dim theme for evenings). The choice
+is saved for the household, so every screen follows it. All three meet WCAG AA contrast;
+Midnight's dimmer text is a touch brighter than before because the old shade fell short on
+some surfaces. The screensaver stays dark in every theme.
+
+**"Update available".** Once a day the server asks GitHub whether a newer Mantel has been
+released, and the version badge says so when one has, with a link to what changed and the
+one-line Docker upgrade. Nothing updates itself. `UPDATE_CHECK_ENABLED=false` turns the check
+off entirely, with no network calls (see `docs/configuration.md`).
+
+**Month view peeks at the next month**, so it's clear the page scrolls, and **the people
+filter sits in the toolbar** beside Today and the arrows (on a phone, on a second line of it).
+
 ## 0.5.10
 
 **Month view scrolls.** Swipe or scroll up and down to run through previous and next months

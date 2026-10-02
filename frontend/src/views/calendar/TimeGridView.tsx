@@ -1,5 +1,5 @@
 import { format, isToday } from 'date-fns'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { CalendarEvent } from '../../api/types'
 import { overlapsDay, startOfLocalDay } from './overlap'
 
@@ -19,8 +19,8 @@ interface Props {
  *  the smaller ones rather than too late on the display that matters most. */
 const TWO_LINES_PX = 40
 
-/** One component drives Today (1 column), 3-Day (3) and Week (7) -- they differ only in
- *  how many day columns they render. */
+/** Day view: one page, one column. 3 Day and Week scroll as a continuous strip instead
+ *  (TimeStripView), but draw their columns with the same pieces. */
 export function TimeGridView({
   days,
   events,
@@ -59,71 +59,162 @@ export function TimeGridView({
           <div className="timegrid__gutter-head">all day</div>
           {days.map((day) => (
             <div key={day.toISOString()} className="timegrid__alldaycell">
-              {allDay
-                .filter((e) => overlapsDay(e, day))
-                .map((e) => (
-                  <button
-                    key={e.id}
-                    className="chip"
-                    style={{ background: e.color }}
-                    onClick={() => onSelectEvent(e)}
-                  >
-                    {e.title}
-                  </button>
-                ))}
+              <AllDayChips day={day} events={allDay} onSelectEvent={onSelectEvent} />
             </div>
           ))}
         </div>
       )}
 
       <div className="timegrid__body" ref={scrollRef}>
-        <div className="timegrid__gutter">
-          {hours.map((h) => (
-            <div key={h} className="timegrid__hourlabel" style={{ height: hourHeight }}>
-              {formatHour(h, use24h)}
-            </div>
-          ))}
-        </div>
+        <HourGutter hours={hours} hourHeight={hourHeight} use24h={use24h} />
         {days.map((day) => (
-          <div key={day.toISOString()} className="timegrid__col" data-today={isToday(day)}>
-            {hours.map((h) => (
-              <button
-                key={h}
-                className="timegrid__slot"
-                style={{ height: hourHeight }}
-                aria-label={`Add event ${format(day, 'EEE d')} ${formatHour(h, use24h)}`}
-                onClick={() => onSelectSlot(withHour(day, h))}
-              />
-            ))}
-            {layout(events.filter((e) => !e.all_day && overlapsDay(e, day)), day, hourHeight).map(
-              ({ event, top, height, left, width }) => (
-                <button
-                  key={event.id}
-                  className="event-block"
-                  // A block this short cannot fit a title above a time; the CSS
-                  // lays those out on one line instead.
-                  data-compact={height < TWO_LINES_PX}
-                  style={{
-                    top: top - dayStartHour * hourHeight,
-                    height,
-                    left: `${left}%`,
-                    width: `${width}%`,
-                    background: event.color,
-                  }}
-                  onClick={() => onSelectEvent(event)}
-                >
-                  <span className="event-block__title">{event.title}</span>
-                  <span className="event-block__time">
-                    {formatTime(new Date(event.start_at), use24h)}
-                  </span>
-                </button>
-              ),
-            )}
-            {isToday(day) && <NowLine dayStartHour={dayStartHour} hourHeight={hourHeight} />}
-          </div>
+          <DayColumn
+            key={day.toISOString()}
+            day={day}
+            events={events}
+            hours={hours}
+            dayStartHour={dayStartHour}
+            hourHeight={hourHeight}
+            use24h={use24h}
+            onSelectEvent={onSelectEvent}
+            onSelectSlot={onSelectSlot}
+          />
         ))}
       </div>
     </div>
+  )
+}
+
+export function HourGutter({
+  hours,
+  hourHeight,
+  use24h,
+}: {
+  hours: number[]
+  hourHeight: number
+  use24h: boolean
+}) {
+  return (
+    <div className="timegrid__gutter">
+      {hours.map((h) => (
+        <div key={h} className="timegrid__hourlabel" style={{ height: hourHeight }}>
+          {formatHour(h, use24h)}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+interface ColumnProps {
+  day: Date
+  events: CalendarEvent[]
+  hours: number[]
+  dayStartHour: number
+  hourHeight: number
+  use24h: boolean
+  /** Far from the view in the scrolling strip: same height, nothing inside. */
+  placeholder?: boolean
+  onSelectEvent: (e: CalendarEvent) => void
+  onSelectSlot: (start: Date) => void
+}
+
+/** One day's hour slots, events and now-line. Shared by Day view and the scrolling strip
+ *  so the two cannot drift apart. */
+export function DayColumn({
+  day,
+  events,
+  hours,
+  dayStartHour,
+  hourHeight,
+  use24h,
+  placeholder,
+  onSelectEvent,
+  onSelectSlot,
+}: ColumnProps) {
+  const positioned = useMemo(
+    () =>
+      placeholder
+        ? []
+        : layout(
+            events.filter((e) => !e.all_day && overlapsDay(e, day)),
+            day,
+            hourHeight,
+          ),
+    [placeholder, events, day, hourHeight],
+  )
+  if (placeholder) {
+    // The height the slots would add up to, so swapping between this and a full column
+    // never moves the scroll position.
+    return (
+      <div
+        className="timegrid__col"
+        data-today={isToday(day)}
+        style={{ height: hours.length * hourHeight }}
+        aria-hidden
+      />
+    )
+  }
+  return (
+    <div className="timegrid__col" data-today={isToday(day)}>
+      {hours.map((h) => (
+        <button
+          key={h}
+          className="timegrid__slot"
+          style={{ height: hourHeight }}
+          aria-label={`Add event ${format(day, 'EEE d')} ${formatHour(h, use24h)}`}
+          onClick={() => onSelectSlot(withHour(day, h))}
+        />
+      ))}
+      {positioned.map(({ event, top, height, left, width }) => (
+        <button
+          key={event.id}
+          className="event-block"
+          // A block this short cannot fit a title above a time; the CSS
+          // lays those out on one line instead.
+          data-compact={height < TWO_LINES_PX}
+          style={{
+            top: top - dayStartHour * hourHeight,
+            height,
+            left: `${left}%`,
+            width: `${width}%`,
+            background: event.color,
+          }}
+          onClick={() => onSelectEvent(event)}
+        >
+          <span className="event-block__title">{event.title}</span>
+          <span className="event-block__time">{formatTime(new Date(event.start_at), use24h)}</span>
+        </button>
+      ))}
+      {isToday(day) && <NowLine dayStartHour={dayStartHour} hourHeight={hourHeight} />}
+    </div>
+  )
+}
+
+/** The all-day chips for one day, shared like DayColumn. */
+export function AllDayChips({
+  day,
+  events,
+  onSelectEvent,
+}: {
+  day: Date
+  events: CalendarEvent[]
+  onSelectEvent: (e: CalendarEvent) => void
+}) {
+  return (
+    <>
+      {events
+        .filter((e) => e.all_day && overlapsDay(e, day))
+        .map((e) => (
+          <button
+            key={e.id}
+            className="chip"
+            style={{ background: e.color }}
+            onClick={() => onSelectEvent(e)}
+          >
+            {e.title}
+          </button>
+        ))}
+    </>
   )
 }
 
@@ -134,7 +225,7 @@ function NowLine({ dayStartHour, hourHeight }: { dayStartHour: number; hourHeigh
   return <div className="nowline" style={{ top }} />
 }
 
-function withHour(day: Date, hour: number): Date {
+export function withHour(day: Date, hour: number): Date {
   const d = new Date(day)
   d.setHours(hour, 0, 0, 0)
   return d

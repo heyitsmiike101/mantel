@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     sync_past_days: int = 90
     sync_enabled: bool = True
 
+    # Daily "is a newer release on GitHub?" check. Independent of sync_enabled, which is
+    # about calendars. Off means no network call at all.
+    update_check_enabled: bool = True
+    update_check_repo: str = "heyitsmiike101/mantel"
+    update_check_interval_hours: int = 24
+
     cors_origins: str = "*"
 
     @property

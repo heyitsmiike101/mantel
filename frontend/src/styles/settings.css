@@ -90,7 +90,7 @@
 
 .row .btn[aria-current='page'] {
   background: var(--accent);
-  color: #06283a;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -152,7 +152,7 @@
 }
 
 .banner--warn {
-  background: rgba(248, 113, 113, 0.12);
+  background: var(--danger-faint);
   border: 1px solid var(--danger);
   color: var(--text);
 }
@@ -481,7 +481,7 @@ code {
 /* For the one step people skip and then pay for weekly -- publishing the app. */
 .steps__note--warn {
   border-left-color: var(--danger);
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--danger-faint);
   color: var(--text);
 }
 
@@ -510,4 +510,67 @@ code {
 .banner {
   background: var(--bg-elev);
   border: 1px solid var(--border);
+}
+
+/* ------------------------------ colour themes ----------------------------- */
+
+.row--stack {
+  align-items: stretch;
+}
+
+.themepick {
+  flex: 1 1 100%;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Colours come inline from the theme the swatch previews; only shape lives here. */
+.themeswatch {
+  flex: 1 1 140px;
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name chips' 'card card';
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 2px solid;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.themeswatch__name {
+  grid-area: name;
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.themeswatch__chips {
+  grid-area: chips;
+  display: flex;
+  gap: 4px;
+}
+
+.themeswatch__chips span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.themeswatch__card {
+  grid-area: card;
+  height: 14px;
+  border: 1px solid;
+  border-radius: 6px;
+}
+
+/* The live accent rings the chosen swatch; the tick keeps it legible without colour. */
+.themeswatch[aria-pressed='true'] {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.themeswatch[aria-pressed='true'] .themeswatch__name::after {
+  content: ' \2713';
 }

@@ -10,6 +10,8 @@ os.environ["SECRET_KEY"] = "aTFRcm1Bd0hRR0RfUHhZS2dJTFVKZDZ6X1dRdG5NNTA="
 os.environ["APP_VERSION"] = "test"
 # Tests drive sync explicitly; the background loops would race their assertions.
 os.environ["SYNC_ENABLED"] = "false"
+# Never let a test run reach out to GitHub from the startup update check.
+os.environ["UPDATE_CHECK_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient  # noqa: E402
 

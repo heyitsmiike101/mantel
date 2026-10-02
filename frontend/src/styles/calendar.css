@@ -95,7 +95,7 @@
 
 .iconbtn--primary {
   background: var(--accent);
-  color: #06283a;
+  color: var(--on-accent);
   font-size: var(--font-lg);
   font-weight: 700;
 }
@@ -157,7 +157,7 @@
 
 .timegrid__dayhead[data-today='true'] .timegrid__daynum {
   background: var(--accent);
-  color: #06283a;
+  color: var(--on-accent);
   border-radius: 999px;
   display: inline-block;
   min-width: calc(2rem * var(--scale));
@@ -199,20 +199,20 @@
 }
 
 .timegrid__col[data-today='true'] {
-  background: rgba(56, 189, 248, 0.05);
+  background: var(--accent-faint);
 }
 
 .timegrid__slot {
   display: block;
   width: 100%;
-  border-top: 1px solid rgba(51, 65, 85, 0.55);
+  border-top: 1px solid var(--grid-line);
   min-height: 0;
   min-width: 0;
   padding: 0;
 }
 
 .timegrid__slot:active {
-  background: rgba(56, 189, 248, 0.15);
+  background: var(--accent-soft);
 }
 
 .event-block {
@@ -221,7 +221,7 @@
   padding: 3px 6px;
   overflow: hidden;
   text-align: left;
-  color: #0b1220;
+  color: var(--chip-ink);
   font-size: var(--font-xs);
   line-height: 1.2;
   min-height: 0;
@@ -288,7 +288,7 @@
   width: 100%;
   border-radius: 6px;
   padding: 4px 6px;
-  color: #0b1220;
+  color: var(--chip-ink);
   font-size: var(--font-xs);
   font-weight: 600;
   text-align: left;
@@ -296,6 +296,72 @@
   overflow: hidden;
   text-overflow: ellipsis;
   min-height: 26px;
+  min-width: 0;
+}
+
+/* Week and 3 Day: one scroller, both axes. The header, all-day band and hour gutter are
+   `sticky` against it, so they ride along on the axis they share with the columns and stay
+   put on the other, with nothing to keep in sync from script. */
+.timestrip {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  /* Views correct scrollLeft themselves when days are prepended; native scroll anchoring
+     would do it a second time (see .monthscroll). */
+  overflow-anchor: none;
+  /* touch-action stops at the nearest scroll container, so the pan-y on .calpage__body
+     does not reach in here. Both axes, or a sideways drag would be cancelled. */
+  touch-action: pan-x pan-y;
+  position: relative;
+  --gutter: calc(52px * var(--scale));
+  --col: calc((100cqw - var(--gutter)) / var(--days, 7));
+}
+
+/* Exactly as wide as the scroller's visible area, scrollbar excluded -- which is what makes
+   100cqw below the width a column is a fraction of, so --days columns fit between the
+   gutter and the right edge. The scroller cannot be the container itself: a container's
+   size includes the scrollbar, and the last column would then hang off the edge by it. */
+.timestrip__ruler {
+  width: 100%;
+  container-type: inline-size;
+}
+
+/* As wide as every column, so the sticky gutter has room to stick along. */
+.timestrip__inner {
+  width: calc(var(--gutter) + var(--n, 7) * var(--col));
+}
+
+.timestrip__top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+}
+
+.timestrip__row {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(var(--n, 7), var(--col));
+}
+
+.timestrip__row--head,
+.timestrip__row--allday {
+  border-bottom: 1px solid var(--border);
+}
+
+.timestrip__row--body {
+  align-items: start;
+}
+
+/* Opaque, so columns scrolling underneath do not show through. */
+.timestrip__row > .timegrid__gutter-head,
+.timestrip .timegrid__gutter {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--bg);
+}
+
+.timestrip .timegrid__col {
   min-width: 0;
 }
 
@@ -393,7 +459,7 @@
 }
 
 .month__addlayer:active {
-  background: rgba(56, 189, 248, 0.15);
+  background: var(--accent-soft);
 }
 
 /* It covers the whole cell, so the default outline would be drawn under the day
@@ -413,7 +479,7 @@
 }
 
 .month__cell[data-today='true'] {
-  background: rgba(56, 189, 248, 0.07);
+  background: var(--accent-wash);
 }
 
 .month__daynum {
@@ -434,7 +500,7 @@
 
 .month__cell[data-today='true'] .month__daynum {
   background: var(--accent);
-  color: #06283a;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -477,7 +543,7 @@
   top: var(--app-offset, 0px);
   bottom: auto;
   height: var(--app-height, 100%);
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--overlay);
   /* The overlay is what scrolls, not the card. `place-items: center` centred the
      card by pushing its top *above* the overlay when it was too tall to fit --
      off-screen, and unreachable, because nothing here scrolled. A flex box that
@@ -616,7 +682,7 @@ a.btn {
 
 .btn--primary {
   background: var(--accent);
-  color: #06283a;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -668,7 +734,7 @@ a.btn {
   padding: 8px 16px;
   border-radius: 999px;
   border: 2px solid transparent;
-  color: #0b1220;
+  color: var(--chip-ink);
   font-size: var(--font-sm);
   font-weight: 600;
   white-space: nowrap;
@@ -778,7 +844,8 @@ a.btn {
   }
 
   /* A phone has no room for a 52px time gutter beside seven day columns. */
-  .timegrid {
+  .timegrid,
+  .timestrip {
     --gutter: 34px;
   }
 

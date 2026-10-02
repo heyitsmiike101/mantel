@@ -7,6 +7,7 @@ import { VersionBadge } from './components/VersionBadge'
 import { useBurnInShift } from './hooks/useIdle'
 import { useOnline } from './hooks/useOnline'
 import { useViewportFit } from './hooks/useViewportFit'
+import { applyTheme, isThemeId } from './theme'
 
 /** The four calendar views, each its own destination. A phone shows one entry for
  *  all of them instead — seven items plus a version badge do not fit across 390px,
@@ -43,6 +44,12 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.scale = settings?.display_scale ?? 'normal'
   }, [settings?.display_scale])
+
+  useEffect(() => {
+    // An unrecognised value (a newer server, a hand-edited row) keeps whatever is
+    // already showing rather than blanking every token.
+    if (isThemeId(settings?.theme)) applyTheme(settings.theme)
+  }, [settings?.theme])
 
   return (
     <div

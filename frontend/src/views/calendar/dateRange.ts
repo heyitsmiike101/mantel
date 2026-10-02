@@ -1,6 +1,7 @@
 import {
   addDays,
   addMonths,
+  differenceInCalendarDays,
   differenceInCalendarMonths,
   endOfMonth,
   endOfWeek,
@@ -126,3 +127,91 @@ function eachDay(start: Date, end: Date): Date[] {
 export function eventsRangeAround(month: Date, weekStartsOn: 0 | 1): { start: Date; end: Date } {
   return windowRange(monthWindow(month, FULL_RENDER_PAD, FULL_RENDER_PAD), weekStartsOn)
 }
+
+/** Week and 3 Day are one continuous strip of day columns rather than pages. */
+export type StripKind = '3day' | 'week'
+
+export function isStripKind(k: ViewKind | null): k is StripKind {
+  return k === '3day' || k === 'week'
+}
+
+/** Day columns a strip shows at once. */
+export function spanOf(kind: StripKind): number {
+  return kind === 'week' ? 7 : 3
+}
+
+/** A run of whole days, inclusive at both ends, each held as local midnight. */
+export interface DayWindow {
+  first: Date
+  last: Date
+}
+
+/** Days laid out either side of the one the strip opens on. Large so the window rarely has
+ *  to grow (growing means prepending, which has to correct scrollLeft); cheap because only
+ *  columns near the view render their hour slots. */
+export const DAY_INITIAL_PAD = 26 * 7
+
+/** Days added when the user does scroll near an edge. A whole number of weeks, so the
+ *  window's edges stay on the same weekday. */
+export const DAY_EXTEND_BATCH = 13 * 7
+
+/** Columns either side of the visible ones that render in full; the rest are placeholders
+ *  of the same size. Two spans covers a fast flick between two paints. */
+export const DAY_FULL_PAD = 14
+
+export function dayWindow(center: Date, before = DAY_INITIAL_PAD, after = DAY_INITIAL_PAD): DayWindow {
+  const c = startOfDay(center)
+  return { first: addDays(c, -before), last: addDays(c, after) }
+}
+
+export function daysIn(win: DayWindow): Date[] {
+  const n = differenceInCalendarDays(win.last, win.first) + 1
+  return Array.from({ length: n }, (_, i) => addDays(win.first, i))
+}
+
+export function dayWindowHas(win: DayWindow, day: Date): boolean {
+  const d = startOfDay(day)
+  return d >= win.first && d <= win.last
+}
+
+/** Grows the window by `by` days on one side. Same object back for 0, so callers can bail
+ *  out of a state update. */
+export function extendDayWindow(win: DayWindow, side: 'start' | 'end', by = DAY_EXTEND_BATCH): DayWindow {
+  if (by <= 0) return win
+  return side === 'start'
+    ? { first: addDays(win.first, -by), last: win.last }
+    : { first: win.first, last: addDays(win.last, by) }
+}
+
+/** The day a strip should have in its first column to show `day` the way the view means
+ *  it: the whole week containing it for Week, the day itself for 3 Day. */
+export function stripStartFor(kind: StripKind, day: Date, weekStartsOn: 0 | 1): Date {
+  return kind === 'week' ? startOfWeek(day, { weekStartsOn }) : startOfDay(day)
+}
+
+/** Where the arrows go from the first visible day. Week lands on a week start however far
+ *  into a week the view was left, so repeated taps stay aligned; 3 Day just moves three
+ *  days. */
+export function stripStep(kind: StripKind, from: Date, direction: 1 | -1, weekStartsOn: 0 | 1): Date {
+  const moved = addDays(from, spanOf(kind) * direction)
+  return stripStartFor(kind, moved, weekStartsOn)
+}
+
+/** The first fully visible column for a horizontal scroll position. One pixel of slack,
+ *  because a snapped scroll can land a fraction short of the boundary. */
+export function firstVisibleIndex(scrollLeft: number, colWidth: number): number {
+  if (colWidth <= 0) return 0
+  return Math.max(0, Math.ceil((scrollLeft - 1) / colWidth))
+}
+
+/** What to fetch while the strip's first visible day is `start`. Bucketed by span, so the
+ *  query key changes once per span scrolled rather than per column; always covers the
+ *  visible days plus at least one span either side, which is what keeps events in place
+ *  while the next range loads. */
+export function stripFetchRange(start: Date, span: number): { start: Date; end: Date } {
+  const bucket = Math.floor(differenceInCalendarDays(start, STRIP_EPOCH) / span)
+  const from = addDays(STRIP_EPOCH, (bucket - 1) * span)
+  return { start: from, end: addDays(from, 4 * span) }
+}
+
+const STRIP_EPOCH = new Date(2000, 0, 1)

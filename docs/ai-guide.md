@@ -284,3 +284,5 @@ either linked or it is not, which `server.icloud_linked` and `GET /api/sync/stat
 
 `GET /api/version` is also how screens detect a new deployment — they poll it and hard-reload
 when the version changes.
+The same response carries `latest_version`, `update_available`, `checked_at` and `release_url`
+from the daily GitHub release check (all null/false until the first check succeeds).

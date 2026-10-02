@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..bootstrap import DEFAULT_SETTINGS
+from ..bootstrap import DEFAULT_SETTINGS, THEMES
 from ..config import get_settings
 from ..db import get_db
 from ..models import AppSetting
@@ -50,13 +50,19 @@ def get_app_settings(db: Session = Depends(get_db)) -> dict:
     summary="Update app settings",
     description=(
         "Send only the keys you want to change, e.g. `{\"display_scale\": \"wall\"}`. Unknown "
-        "keys are rejected so a typo cannot silently do nothing."
+        "keys are rejected so a typo cannot silently do nothing. `theme` must be one of "
+        "`midnight` (default), `daylight` or `hearth`; it restyles every screen at once."
     ),
 )
 def update_app_settings(payload: dict, db: Session = Depends(get_db)) -> dict:
     unknown = set(payload) - set(DEFAULT_SETTINGS)
     if unknown:
         raise HTTPException(400, f"Unknown settings: {', '.join(sorted(unknown))}")
+
+    if "theme" in payload and payload["theme"] not in THEMES:
+        raise HTTPException(
+            400, f"Unknown theme {payload['theme']!r}. Choose one of: {', '.join(THEMES)}"
+        )
 
     # Encrypted at rest with the same key as the OAuth tokens. An empty string
     # means "leave it alone", so the settings form can post the whole object

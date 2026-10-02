@@ -20,6 +20,7 @@ export function acquireReloadGuard() {
 export function useVersionPoll() {
   const [version, setVersion] = useState<string>(import.meta.env.VITE_APP_VERSION ?? 'dev')
   const [buildTime, setBuildTime] = useState<string>('')
+  const [update, setUpdate] = useState<VersionInfo | null>(null)
   const baseline = useRef<string | null>(null)
   const pendingReload = useRef(false)
 
@@ -32,6 +33,7 @@ export function useVersionPoll() {
         if (cancelled) return
         setVersion(info.version)
         setBuildTime(info.build_time)
+        setUpdate(info)
         // Dispatched before the baseline check so the very first successful poll
         // also clears any offline state.
         window.dispatchEvent(new Event('famcal:reachable'))
@@ -61,5 +63,5 @@ export function useVersionPoll() {
     }
   }, [])
 
-  return { version, buildTime }
+  return { version, buildTime, update }
 }
