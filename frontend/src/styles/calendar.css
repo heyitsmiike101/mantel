@@ -325,7 +325,12 @@
 /* Exactly one screen tall, so a snapped month fills the view the way the old single
    grid did. */
 .month {
-  height: 100%;
+  /* A little shorter than the scroller, so a month snapped to the top leaves the next
+     month's label and the start of its first row showing along the bottom. Without that
+     the scroller looked exactly like the old one-month page and nobody would guess it
+     scrolls. Scaled with the display size so the label clears on a wall display too. */
+  --month-peek: calc(40px * var(--scale));
+  height: calc(100% - var(--month-peek));
   display: grid;
   grid-template-rows: auto auto 1fr;
   grid-template-columns: minmax(0, 1fr);
@@ -637,6 +642,18 @@ a.btn {
   scrollbar-width: none;
 }
 
+/* The chips live in the toolbar now, so they borrow its strip instead of drawing their
+   own. They give way before the buttons do: the row scrolls sideways if a big family
+   runs out of room. */
+.calpage__bar .peoplefilter {
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 6px;
+  padding: 0 6px 0 0;
+  border-bottom: none;
+  background: none;
+}
+
 .peoplefilter::-webkit-scrollbar {
   display: none;
 }
@@ -719,10 +736,6 @@ a.btn {
   padding: 8px 0;
 }
 
-/* The calendar page grows a filter row between the toolbar and the grid. */
-.calpage[data-filtered='true'] {
-  grid-template-rows: auto auto 1fr;
-}
 
 
 /* ---------------------- view switcher (phones only) ----------------------- */
@@ -788,9 +801,16 @@ a.btn {
     padding: 8px 12px;
   }
 
-  .peoplefilter {
-    padding: 8px 10px;
-    border-bottom: none;
+  /* No room for the chips beside five controls at 390px: they take a second line of
+     the bar, under the title and buttons. */
+  .calpage__bar {
+    flex-wrap: wrap;
+  }
+
+  .calpage__bar .peoplefilter {
+    order: 1;
+    flex: 1 0 100%;
+    padding: 4px 0 0;
   }
 
   /* The grid is the content -- give it the only hard edge on the screen. */

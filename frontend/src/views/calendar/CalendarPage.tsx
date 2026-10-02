@@ -134,12 +134,41 @@ export function CalendarPage() {
   }
 
   return (
-    <div className="calpage" data-filtered={users.length > 0 ? 'true' : undefined}>
+    <div className="calpage">
       <header className="calpage__bar">
         <div className="calpage__titlewrap">
           <h1 className="calpage__title">{titleFor(kind, range.start, range.end, anchor)}</h1>
           {isLoading && <span className="calpage__loading">…</span>}
         </div>
+        {/* In the toolbar, beside the controls rather than the title, so they don't slide
+            sideways every time the title changes length. A phone wraps them onto a
+            second line of the same bar. */}
+        {users.length > 0 && (
+          <div className="peoplefilter">
+            {users.map((u) => {
+              const shown = isVisible(u.id)
+              return (
+                <button
+                  key={u.id}
+                  className="personchip"
+                  data-hidden={!shown}
+                  aria-pressed={shown}
+                  style={shown ? { background: u.color, borderColor: u.color } : undefined}
+                  onClick={() => toggle(u.id)}
+                  title={shown ? `Hide ${u.name}'s events` : `Show ${u.name}'s events`}
+                >
+                  {u.avatar_emoji && <span aria-hidden>{u.avatar_emoji}</span>}
+                  {u.name}
+                </button>
+              )
+            })}
+            {anyHidden && (
+              <button className="personchip personchip--all" onClick={showEveryone}>
+                Show everyone
+              </button>
+            )}
+          </div>
+        )}
         <button className="iconbtn" onClick={goToday}>
           Today
         </button>
@@ -170,33 +199,6 @@ export function CalendarPage() {
           </button>
         ))}
       </div>
-
-      {users.length > 0 && (
-        <div className="peoplefilter">
-          {users.map((u) => {
-            const shown = isVisible(u.id)
-            return (
-              <button
-                key={u.id}
-                className="personchip"
-                data-hidden={!shown}
-                aria-pressed={shown}
-                style={shown ? { background: u.color, borderColor: u.color } : undefined}
-                onClick={() => toggle(u.id)}
-                title={shown ? `Hide ${u.name}'s events` : `Show ${u.name}'s events`}
-              >
-                {u.avatar_emoji && <span aria-hidden>{u.avatar_emoji}</span>}
-                {u.name}
-              </button>
-            )
-          })}
-          {anyHidden && (
-            <button className="personchip personchip--all" onClick={showEveryone}>
-              Show everyone
-            </button>
-          )}
-        </div>
-      )}
 
       <div className="calpage__body" {...swipe}>
         {kind === 'month' ? (

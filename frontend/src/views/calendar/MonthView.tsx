@@ -32,7 +32,7 @@ const monthKey = (m: Date) => format(m, 'yyyy-MM')
  *  about two years out, long before a normal scroll could reach the end. */
 const EXTEND_SCREENS = 3
 
-/** "Near the edge of a month" for the light snap: within 12% of a screen of a month
+/** "Near the edge of a month" for the light snap: within 12% of a month's height of a month
  *  boundary, in either direction. Wide enough that a slightly-off stop tidies itself up,
  *  narrow enough that stopping mid-way (to read the middle of a month) stays put. */
 const SNAP_FRACTION = 0.12
@@ -139,10 +139,13 @@ export function MonthView({
       // was how a fresh load (the people bar arriving shrinks the scroller) opened one or
       // two months late: this ran first, and the re-pin then pinned the wrong month.
       if (h !== sizedFor) return
-      // Every block is exactly one screen tall, so the month in view is the one whose
-      // span holds the middle of the viewport -- "the one most on screen".
+      // Every block is the same height, so the month in view is the one whose span
+      // holds the middle of the viewport -- "the one most on screen".
       const blocks = el.querySelectorAll<HTMLElement>('[data-month]')
-      const index = Math.min(blocks.length - 1, Math.max(0, Math.floor((el.scrollTop + h / 2) / h)))
+      // Blocks are a peek shorter than the screen (see .month in calendar.css), so step by
+      // a block's own height, not the scroller's.
+      const bh = blocks[0]?.offsetHeight || h
+      const index = Math.min(blocks.length - 1, Math.max(0, Math.floor((el.scrollTop + h / 2) / bh)))
       const key = blocks[index]?.dataset.month
       if (key) {
         const [y, m] = key.split('-').map(Number)
@@ -193,7 +196,8 @@ export function MonthView({
       // Never the one it started on.
       const from = rest.current
       const st = el.scrollTop
-      const below = Math.min(blocks.length - 1, Math.max(0, Math.floor(st / h)))
+      const bh = blocks[0].offsetHeight || h
+      const below = Math.min(blocks.length - 1, Math.max(0, Math.floor(st / bh)))
       const behindTop = blocks[below].offsetTop
       const aheadTop = blocks[Math.min(blocks.length - 1, below + 1)].offsetTop
       let target: number | null = null
@@ -202,13 +206,13 @@ export function MonthView({
         // near where it started should settle back: plain nearest boundary.
         byTouch = false
         const near = st - behindTop <= aheadTop - st ? behindTop : aheadTop
-        if (Math.abs(near - st) <= h * SNAP_FRACTION) target = near
+        if (Math.abs(near - st) <= bh * SNAP_FRACTION) target = near
       } else if (st > from) {
-        if (aheadTop - st <= h * SNAP_FRACTION) target = aheadTop
-        else if (from < behindTop - 1 && st - behindTop <= h * SNAP_FRACTION) target = behindTop
+        if (aheadTop - st <= bh * SNAP_FRACTION) target = aheadTop
+        else if (from < behindTop - 1 && st - behindTop <= bh * SNAP_FRACTION) target = behindTop
       } else if (st < from) {
-        if (st - behindTop <= h * SNAP_FRACTION) target = behindTop
-        else if (from > aheadTop + 1 && aheadTop - st <= h * SNAP_FRACTION) target = aheadTop
+        if (st - behindTop <= bh * SNAP_FRACTION) target = behindTop
+        else if (from > aheadTop + 1 && aheadTop - st <= bh * SNAP_FRACTION) target = aheadTop
       }
       // > 1px also stops the snap re-triggering itself once it has arrived.
       if (target !== null && Math.abs(target - st) > 1) {
@@ -313,7 +317,7 @@ interface BlockProps {
 
 function MonthBlock({ full, ...rest }: BlockProps) {
   if (!full) {
-    // Keeps its place in the scroll (the block is height: 100% either way) so swapping
+    // Keeps its place in the scroll (same .month height either way) so swapping
     // between this and a full block never moves anything. A few hundred cells per month
     // are only worth drawing for the months the user can actually reach.
     return (
