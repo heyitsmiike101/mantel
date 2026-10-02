@@ -32,6 +32,7 @@ const render = (events: CalendarEvent[] = [], kind: 'week' | '3day' = 'week') =>
       kind={kind}
       window={win}
       initialStart={new Date(2026, 9, 11)}
+      weekStartsOn={0}
       events={events}
       dayStartHour={8}
       dayEndHour={12}

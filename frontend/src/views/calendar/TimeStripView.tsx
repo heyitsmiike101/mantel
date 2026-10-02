@@ -2,7 +2,7 @@ import { differenceInCalendarDays, format, isToday } from 'date-fns'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CalendarEvent } from '../../api/types'
 import { useLightSnap } from '../../hooks/useLightSnap'
-import { DAY_FULL_PAD, firstVisibleIndex, spanOf, type DayWindow, type StripKind, daysIn } from './dateRange'
+import { DAY_FULL_PAD, firstVisibleIndex, spanOf, stripStartFor, type DayWindow, type StripKind, daysIn } from './dateRange'
 import { AllDayChips, DayColumn, HourGutter } from './TimeGridView'
 
 /** Ask the strip to bring a day to the first column. `id` makes repeat requests for the
@@ -18,6 +18,7 @@ interface Props {
   /** The day to open in the first column. Read once, on mount; after that the user (or a
    *  scroll request) owns the scroll position. */
   initialStart: Date
+  weekStartsOn: 0 | 1
   events: CalendarEvent[]
   dayStartHour: number
   dayEndHour: number
@@ -46,6 +47,7 @@ export function TimeStripView({
   kind,
   window: win,
   initialStart,
+  weekStartsOn,
   events,
   dayStartHour,
   dayEndHour,
@@ -93,7 +95,13 @@ export function TimeStripView({
       const size = colWidth()
       // Column i sits at i * size in the content, with the sticky gutter overlaying the
       // first `gutter` pixels -- so scrolling to i * size puts column i first in view.
-      return size > 0 ? { size, count: daysRef.current.length, at: (i) => i * size } : null
+      if (size <= 0) return null
+      // Today's default view (its week, or today first) gets the stronger home pull.
+      // Worked out at each settle rather than once, so a wall screen left on overnight
+      // moves home to the new day.
+      const h = indexOf(stripStartFor(kind, new Date(), weekStartsOn))
+      const count = daysRef.current.length
+      return { size, count, at: (i) => i * size, home: h >= 0 && h < count ? h * size : null }
     },
   })
 

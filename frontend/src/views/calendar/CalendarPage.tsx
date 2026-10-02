@@ -305,6 +305,7 @@ export function CalendarPage() {
             kind={stripKind}
             window={stripWin}
             initialStart={stripOpen.initial}
+            weekStartsOn={weekStartsOn}
             events={events}
             dayStartHour={settings?.day_start_hour ?? 7}
             dayEndHour={settings?.day_end_hour ?? 22}

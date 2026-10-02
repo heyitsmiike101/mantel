@@ -26,6 +26,13 @@ they cannot write back.
 
 **Chores and rewards**, and **meal planning** -- both frequently asked for, neither started.
 
+## 0.5.12
+
+**Week and 3 Day find their way home.** Scroll away and come back toward today, and the
+view settles exactly on today's starting position (its week, or today in the first
+column) once you're within half a day of it -- a firmer pull than the light snap onto any
+other day. Scrolling away from today is never pulled back.
+
 ## 0.5.11
 
 **Week and 3 Day scroll sideways, forever.** Drag or swipe left and right through the days

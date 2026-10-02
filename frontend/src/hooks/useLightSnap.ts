@@ -5,6 +5,11 @@ import { useLayoutEffect, useRef, type RefObject } from 'react'
  *  stopping mid-way (to read the middle of a month) stays put. */
 export const SNAP_FRACTION = 0.12
 
+/** The pull of a scroller's home position (Week/3 Day: today's default view), as a
+ *  fraction of a unit. Medium rather than light: coming back to "now" should land on it
+ *  without having to be lined up by hand, but a distant stop is still left alone. */
+export const HOME_FRACTION = 0.5
+
 /** Quiet period after the last scroll event before we treat the scroll as settled, for
  *  browsers without the `scrollend` event. */
 const SETTLE_MS = 150
@@ -24,6 +29,8 @@ export interface SnapUnits {
   size: number
   count: number
   at: (index: number) => number
+  /** Optional scroll position with a stronger pull (HOME_FRACTION), e.g. today's view. */
+  home?: number | null
 }
 
 interface Options {
@@ -98,7 +105,19 @@ export function useLightSnap(ref: RefObject<HTMLElement | null>, { axis, measure
       const behind = units.at(below)
       const ahead = units.at(Math.min(units.count - 1, below + 1))
       let target: number | null = null
-      if (byTouch) {
+      const home = units.home
+      // Home pulls only a scroll that is coming back to it -- one that got closer or
+      // crossed it. A scroll leaving home is never yanked back, or every wheel notch
+      // away from today would land on today again.
+      const towardHome =
+        home != null &&
+        Math.abs(st - home) <= bh * HOME_FRACTION &&
+        Math.abs(from - home) > 1 &&
+        (Math.abs(st - home) < Math.abs(from - home) - 1 || (st - home) * (from - home) < 0)
+      if (towardHome) {
+        byTouch = false
+        target = home
+      } else if (byTouch) {
         // A finger moves continuously rather than in notches, so a short drag let go
         // near where it started should settle back: plain nearest boundary.
         byTouch = false
