@@ -64,6 +64,31 @@
   line-height: 1;
 }
 
+.segmented {
+  display: flex;
+  flex: 0 0 auto;
+  /* The gap shows this background, which is the divider between the two halves. The
+     page background, not --border: --border sat so close to the buttons' own fill that
+     the pair read as one blob. */
+  gap: 2px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmented .iconbtn {
+  border-radius: 0;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  font-weight: 600;
+}
+
+/* overflow: hidden on the group clips an outside ring, so draw focus inside. */
+.segmented .iconbtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+
 .iconbtn:active {
   filter: brightness(1.3);
 }
@@ -276,12 +301,48 @@
 
 /* --------------------------------- Month ---------------------------------- */
 
+/* The vertical scroller. It is the scrolling element (the page body stays overflow:
+   hidden). Snapping to a month is done in MonthView, not with CSS scroll-snap:
+   Chromium's `proximity` snaps back unless you stop well past halfway, which is not
+   "light". `contain` keeps a hard fling at the end of the window from chaining into
+   the page. */
+.monthscroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* MonthView corrects scrollTop itself when months are prepended. Chromium's scroll
+     anchoring does the same correction natively, so with both on the view jumped the
+     prepended height twice -- three months past where the user was. */
+  overflow-anchor: none;
+  /* touch-action is only inherited down to the nearest scroll container, so the pan-y on
+     .calpage__body stops at this element. Without restating it, a sideways swipe here is
+     claimed by the browser and cancelled before useSwipe sees it. */
+  touch-action: pan-y;
+  /* offsetTop of the month blocks is measured against this. */
+  position: relative;
+}
+
+/* Exactly one screen tall, so a snapped month fills the view the way the old single
+   grid did. */
 .month {
   height: 100%;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   grid-template-columns: minmax(0, 1fr);
   min-height: 0;
+}
+
+.month--placeholder {
+  /* Same height as a full block (inherited from .month) so offsets never shift when a
+     month swaps between placeholder and full. Just the label, no grid. */
+  display: block;
+}
+
+.month__label {
+  padding: 4px 10px 0;
+  font-size: var(--font-xs);
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
 }
 
 .month__head {

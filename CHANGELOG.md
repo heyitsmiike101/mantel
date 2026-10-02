@@ -26,6 +26,23 @@ they cannot write back.
 
 **Chores and rewards**, and **meal planning** -- both frequently asked for, neither started.
 
+## 0.5.10
+
+**Month view scrolls.** Swipe or scroll up and down to run through previous and next months
+instead of paging one at a time. Let go near the start of a month and it settles onto it;
+stop in the middle and it stays where you left it. The title follows whichever month is on
+screen, and the arrows, Today and a sideways swipe still step a month at a time.
+
+**The previous and next arrows sit together**, as one control beside Today, in every view.
+Before, the title sat between them.
+
+**An event can be moved to another calendar** -- from someone's Apple calendar to their
+Google one, or to another person's. Change the calendar (or who it's for) in the edit dialog
+and save; the dialog says first that it will be removed from where it was. Under the hood it
+is created on the new calendar and deleted from the old one, since neither service can move
+an event between accounts, so through the API the event comes back with a new `id`. A single
+occurrence of a repeating event can't be moved on its own; the whole series can.
+
 ## 0.4.0
 
 **iCloud calendars now sync, both ways, the same as Google.** Add an event on the wall

@@ -100,6 +100,19 @@ PATCH /api/events/12
 { "start_at": "2026-08-05T15:00:00Z", "end_at": "2026-08-05T16:00:00Z" }
 ```
 
+To put the event on a different calendar, even one at another service, send `calendar_id`:
+
+```http
+PATCH /api/events/12
+{ "calendar_id": 3 }
+```
+
+That is a move, done as a create on the new calendar plus a delete on the old one. **The
+response carries a new `id`; the old one stops working**, so use the returned event from then
+on. The target must be writable, and a Google or iCloud calendar must have syncing on. A
+repeating series (`recurrence_rule` set) moves as a whole, but a single occurrence of one
+(`recurring: true` with no `recurrence_rule`) cannot be moved and answers `400`.
+
 ### 5. Delete an event
 
 ```http
@@ -198,7 +211,8 @@ new `position`.
 - **`end_at` must be after `start_at`** — otherwise `400 bad_request`.
 - **Unclaimed calendars are dim grey** and generally not shown on the wall. Claim one by setting
   `claimed_by_user_id` via `PATCH /api/calendars/{id}`.
-- **Moving an event between calendars is not supported yet.** Delete and recreate instead.
+- **Moving an event between calendars changes its `id`.** See "Move or rename an event". A
+  single occurrence of a series cannot be moved; move the series from where it was created.
 - **Repeating events behave in two different ways, and the difference is the provider.**
   This is the one place `origin` matters, and getting it wrong edits more than you meant to.
 

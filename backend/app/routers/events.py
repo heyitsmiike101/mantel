@@ -199,12 +199,95 @@ def get_event(event_id: int, db: Session = Depends(get_db)) -> EventOut:
     return event_out(_load(db, event_id))
 
 
+# What a moved event carries over. Everything a person can see or set, and nothing that
+# belongs to the provider (remote id, etag) -- the copy is a new resource upstream.
+_MOVED_FIELDS = (
+    "title",
+    "description",
+    "location",
+    "start_at",
+    "end_at",
+    "all_day",
+    "timezone",
+    "recurrence_rule",
+    "exdates",
+    "status",
+)
+
+
+_NULLABLE = {"description", "location", "timezone", "recurrence_rule"}
+
+
+def _move_target(db: Session, ev: Event, calendar_id: int) -> Calendar:
+    """The calendar an event may be moved to, or an HTTPException saying why not."""
+    if ev.recurring_event_id is not None:
+        # Google's instances and iCloud's moved occurrences are rows of their own that
+        # point back at a series. Moving one would copy a single occurrence out and
+        # leave the series behind, or delete it and punch a hole in the series.
+        raise HTTPException(
+            400,
+            "This is one occurrence of a repeating event, and a single occurrence can't be "
+            "moved to another calendar. Move the whole series from the calendar it was "
+            "created on.",
+        )
+    target = _writable_calendar(db, calendar_id)
+    if not target.is_local and not target.sync_enabled:
+        # The push queue skips calendars with syncing off, so the event would save here
+        # and never reach the provider.
+        raise HTTPException(
+            400,
+            f"Syncing is switched off for calendar '{target.name}', so an event moved there "
+            "would never be sent. Turn syncing on for it first.",
+        )
+    return target
+
+
+def _move_event(db: Session, ev: Event, target: Calendar, changes: dict) -> Event:
+    """Move by creating on the target and deleting from the source.
+
+    Providers cannot move a resource between calendars, let alone between accounts, so
+    the move is a new event plus a delete. Both happen in one commit: if the create push
+    later fails the new row stays `pending_create` and is retried, so nothing is lost,
+    and the old row is already `pending_delete` so a background pull of the source
+    calendar neither shows it (list_events hides it) nor overwrites it
+    (`_apply_remote_event` leaves unsynced rows alone).
+    """
+    values = {field: getattr(ev, field) for field in _MOVED_FIELDS}
+    # An explicit null on a required field is ignored, as it would otherwise erase it.
+    values.update({k: v for k, v in changes.items() if v is not None or k in _NULLABLE})
+    if values["end_at"] <= values["start_at"]:
+        raise HTTPException(400, "`end_at` must be after `start_at`")
+    if not values["recurrence_rule"]:
+        values["exdates"] = None  # exclusions mean nothing without a series
+
+    moved = Event(calendar_id=target.id, origin="local", **values)
+    moved.recurrence_end = recurrence.series_end(
+        moved.recurrence_rule, moved.start_at, moved.end_at - moved.start_at
+    )
+    mark_pending(moved, target, "pending_create")
+    db.add(moved)
+
+    if ev.calendar.is_local or ev.google_event_id is None:
+        db.delete(ev)  # nothing upstream to clean up
+    else:
+        ev.sync_state = "pending_delete"
+    db.commit()
+    return moved
+
+
 @router.patch(
     "/{event_id}",
     response_model=EventOut,
     summary="Update an event",
     description=(
-        "Only the fields you send are changed. Google-backed events are pushed automatically."
+        "Only the fields you send are changed. Google- and iCloud-backed events are pushed "
+        "automatically.\n\n"
+        "Sending a different `calendar_id` **moves** the event to that calendar, which can "
+        "belong to another account or service. A move is a create on the new calendar plus a "
+        "delete on the old one, so the response carries a **new `id`** and the old id stops "
+        "working. The target must be writable, and a synced calendar must have syncing "
+        "switched on. A repeating event moves as a whole series; a single occurrence of a "
+        "series (`recurring` true with no `recurrence_rule`) cannot be moved and answers 400."
     ),
 )
 def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_db)) -> EventOut:
@@ -213,9 +296,9 @@ def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_
         raise HTTPException(403, _read_only(ev.calendar))
 
     changes = payload.model_dump(exclude_unset=True)
-    if "calendar_id" in changes and changes["calendar_id"] != ev.calendar_id:
-        # Moving between calendars means deleting remotely and recreating; keep v1 simple.
-        raise HTTPException(400, "Moving an event between calendars is not supported yet")
+    new_calendar_id = changes.pop("calendar_id", None)
+    moving = new_calendar_id is not None and new_calendar_id != ev.calendar_id
+    target = _move_target(db, ev, new_calendar_id) if moving else None
     for key in ("start_at", "end_at"):
         if changes.get(key) is not None:
             changes[key] = to_utc(changes[key])
@@ -224,6 +307,13 @@ def update_event(event_id: int, payload: EventUpdate, db: Session = Depends(get_
             changes["recurrence_rule"] = recurrence.validate(changes["recurrence_rule"])
         except recurrence.RecurrenceError as exc:
             raise HTTPException(400, str(exc)) from exc
+
+    if target is not None:
+        moved = _move_event(db, ev, target, changes)
+        request_push()
+        calendar_changed(db)
+        return event_out(_load(db, moved.id))
+
     for key, value in changes.items():
         setattr(ev, key, value)
     if ev.end_at <= ev.start_at:

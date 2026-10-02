@@ -1,6 +1,18 @@
+import { differenceInCalendarDays } from 'date-fns'
 import { describe, expect, it } from 'vitest'
 import type { CalendarEvent } from '../../api/types'
-import { rangeFor, step } from './dateRange'
+import {
+  MONTH_EXTEND_BATCH,
+  MONTH_INITIAL_PAD,
+  eventsRangeAround,
+  extendWindow,
+  monthsIn,
+  monthWindow,
+  rangeFor,
+  step,
+  windowHas,
+  windowRange,
+} from './dateRange'
 import { overlapsDay } from './overlap'
 
 const at = (s: string) => new Date(s)
@@ -102,5 +114,59 @@ describe('overlapsDay', () => {
     })
     for (const d of [1, 2, 3, 4]) expect(overlapsDay(e, new Date(2026, 7, d))).toBe(true)
     expect(overlapsDay(e, new Date(2026, 7, 5))).toBe(false)
+  })
+})
+
+describe('month window', () => {
+  it('spans the initial pad on either side of the anchor month', () => {
+    const win = monthWindow(at('2026-10-17T12:00:00'))
+    const months = monthsIn(win)
+    expect(months).toHaveLength(2 * MONTH_INITIAL_PAD + 1)
+    expect(months[0]).toEqual(new Date(2024, 9, 1))
+    expect(months[MONTH_INITIAL_PAD]).toEqual(new Date(2026, 9, 1))
+    expect(months[months.length - 1]).toEqual(new Date(2028, 9, 1))
+  })
+
+  it('knows whether a month is inside it, whatever day is passed', () => {
+    const win = monthWindow(at('2026-10-17T12:00:00'), 3, 3)
+    expect(windowHas(win, at('2026-07-31T23:00:00'))).toBe(true)
+    expect(windowHas(win, at('2026-06-30T12:00:00'))).toBe(false)
+    expect(windowHas(win, at('2027-02-01T00:00:00'))).toBe(false)
+  })
+
+  it('extends one side only, and not at all for zero', () => {
+    const win = monthWindow(at('2026-10-17T12:00:00'), 3, 3)
+    const before = extendWindow(win, 'start', 2)
+    expect(before.first).toEqual(new Date(2026, 4, 1))
+    expect(before.last).toEqual(win.last)
+    const after = extendWindow(win, 'end', 2)
+    expect(after.first).toEqual(win.first)
+    expect(after.last).toEqual(new Date(2027, 2, 1))
+    expect(extendWindow(win, 'end', 0)).toBe(win)
+    // The default batch is what scrolling near an edge adds.
+    expect(monthsIn(extendWindow(win, 'end')).length - monthsIn(win).length).toBe(MONTH_EXTEND_BATCH)
+  })
+
+  it('fetches from the first grid day of the first month to the last grid day of the last', () => {
+    const win = monthWindow(at('2026-10-17T12:00:00'), 3, 3)
+    const r = windowRange(win, 0)
+    expect(r.start).toEqual(rangeFor('month', win.first, 0).start)
+    expect(r.end).toEqual(rangeFor('month', win.last, 0).end)
+    // Whole weeks, so every block's grid is covered.
+    expect(differenceInCalendarDays(r.end, r.start) % 7).toBe(0)
+  })
+})
+
+describe('eventsRangeAround', () => {
+  it('covers two months either side of the visible one, not the whole window', () => {
+    const r = eventsRangeAround(at('2026-10-17T12:00:00'), 0)
+    expect(r.start).toEqual(rangeFor('month', new Date(2026, 7, 1), 0).start)
+    expect(r.end).toEqual(rangeFor('month', new Date(2026, 11, 1), 0).end)
+  })
+
+  it('gives the same range for any day of the same month', () => {
+    expect(eventsRangeAround(at('2026-10-01T00:00:00'), 0)).toEqual(
+      eventsRangeAround(at('2026-10-31T23:00:00'), 0),
+    )
   })
 })

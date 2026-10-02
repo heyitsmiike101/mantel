@@ -1,29 +1,359 @@
-import { format, isSameMonth, isToday } from 'date-fns'
+import { addDays, differenceInCalendarMonths, format, isSameMonth, isToday } from 'date-fns'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CalendarEvent } from '../../api/types'
+import { FULL_RENDER_PAD, monthsIn, rangeFor, type MonthWindow } from './dateRange'
 import { overlapsDay } from './overlap'
 
+/** Ask the scroller to bring a month to the top. `id` makes repeat requests for the same
+ *  month (tapping Today twice) distinct. */
+export interface MonthScrollRequest {
+  month: Date
+  id: number
+}
+
 interface Props {
-  days: Date[]
-  anchor: Date
+  window: MonthWindow
+  /** The month to open on. Read once, on mount; after that the user (or a scroll
+   *  request) owns the scroll position. */
+  initialMonth: Date
   events: CalendarEvent[]
   weekStartsOn: 0 | 1
+  scrollRequest?: MonthScrollRequest | null
+  onVisibleMonthChange?: (month: Date) => void
+  /** The user scrolled close to one end of the window; the parent should add months. */
+  onExtend?: (side: 'start' | 'end') => void
   onSelectEvent: (e: CalendarEvent) => void
   onSelectSlot: (start: Date) => void
 }
 
+const monthKey = (m: Date) => format(m, 'yyyy-MM')
+
+/** How many screens from an edge before the window grows. Generous, so growth happens
+ *  about two years out, long before a normal scroll could reach the end. */
+const EXTEND_SCREENS = 3
+
+/** "Near the edge of a month" for the light snap: within 12% of a screen of a month
+ *  boundary, in either direction. Wide enough that a slightly-off stop tidies itself up,
+ *  narrow enough that stopping mid-way (to read the middle of a month) stays put. */
+const SNAP_FRACTION = 0.12
+
+/** Quiet period after the last scroll event before we treat the scroll as settled, for
+ *  browsers without the `scrollend` event. */
+const SETTLE_MS = 150
+
+/** A button-driven scroll is "in flight" until it arrives or this long passes, so the
+ *  snap never fights it. */
+const PROGRAMMATIC_MS = 1500
+
+const prefersReducedMotion = () =>
+  typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+
 export function MonthView({
-  days,
-  anchor,
+  window: win,
+  initialMonth,
   events,
   weekStartsOn,
+  scrollRequest,
+  onVisibleMonthChange,
+  onExtend,
   onSelectEvent,
   onSelectSlot,
 }: Props) {
   const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const ordered = weekStartsOn === 1 ? [...labels.slice(1), labels[0]] : labels
+  const months = useMemo(() => monthsIn(win), [win])
+
+  const scroller = useRef<HTMLDivElement>(null)
+  const frame = useRef(0)
+  const visible = useRef(initialMonth.getTime())
+  // Mirrors `visible` for rendering: only months near it draw their cells. State, so it
+  // re-renders -- but it only changes when the month in view does, not per scroll frame.
+  const [visibleMonth, setVisibleMonth] = useState(initialMonth)
+  // Set while a requested (button) scroll is travelling; the snap stays out of its way.
+  const inflight = useRef<{ top: number; until: number } | null>(null)
+  // Set when we have asked for more months and they have not arrived yet, so a burst of
+  // scroll events adds one batch, not one per event.
+  const extending = useRef(false)
+  const prev = useRef<{ first: number; height: number } | null>(null)
+  // Scroll position when the last scroll settled, i.e. where the next one starts. The
+  // light snap needs it to tell the boundary a scroll left from the one it reached for.
+  const rest = useRef(0)
+  // Callbacks change identity every render; the scroll listener must not be re-bound
+  // each time (a re-bind mid-fling drops events), so it reads them through a ref.
+  const cb = useRef({ onVisibleMonthChange, onExtend })
+  cb.current = { onVisibleMonthChange, onExtend }
+
+  const blockFor = (m: Date | number) =>
+    scroller.current?.querySelector<HTMLElement>(`[data-month="${monthKey(new Date(m))}"]`) ?? null
+
+  // Before paint, so there is never a frame showing the wrong scroll position. Handles
+  // two cases: opening on the right month, and months being added above the viewport.
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    extending.current = false
+    const first = months[0].getTime()
+    if (!prev.current) {
+      const target = blockFor(initialMonth)
+      if (target) el.scrollTop = target.offsetTop
+    } else if (first < prev.current.first) {
+      // Months were prepended. Everything the user is looking at just moved down by
+      // the height we added; move the scroll position with it or the page jumps.
+      const added = el.scrollHeight - prev.current.height
+      el.scrollTop += added
+      rest.current += added
+    }
+    prev.current = { first, height: el.scrollHeight }
+    // initialMonth is deliberately not a dependency: it only matters on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [months])
+
+  // Declared after the effect above so that when a request arrives in the same commit as
+  // newly prepended months, the position has already been corrected before we scroll.
+  useLayoutEffect(() => {
+    if (!scrollRequest) return
+    const target = blockFor(scrollRequest.month)
+    if (!target) return
+    // Someone who asked their OS not to animate gets an instant jump.
+    inflight.current = { top: target.offsetTop, until: Date.now() + PROGRAMMATIC_MS }
+    scroller.current?.scrollTo({
+      top: target.offsetTop,
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollRequest])
+
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (!el) return
+
+    // The height the current scroll position was laid out for; see check().
+    let sizedFor = el.clientHeight
+
+    const check = () => {
+      frame.current = 0
+      const h = el.clientHeight
+      if (h === 0) return
+      // The scroller just changed size and the ResizeObserver has not re-pinned yet, so
+      // scrollTop still belongs to the old block height. Reading the month from it here
+      // was how a fresh load (the people bar arriving shrinks the scroller) opened one or
+      // two months late: this ran first, and the re-pin then pinned the wrong month.
+      if (h !== sizedFor) return
+      // Every block is exactly one screen tall, so the month in view is the one whose
+      // span holds the middle of the viewport -- "the one most on screen".
+      const blocks = el.querySelectorAll<HTMLElement>('[data-month]')
+      const index = Math.min(blocks.length - 1, Math.max(0, Math.floor((el.scrollTop + h / 2) / h)))
+      const key = blocks[index]?.dataset.month
+      if (key) {
+        const [y, m] = key.split('-').map(Number)
+        const month = new Date(y, m - 1, 1)
+        if (month.getTime() !== visible.current) {
+          visible.current = month.getTime()
+          setVisibleMonth(month)
+          cb.current.onVisibleMonthChange?.(month)
+        }
+      }
+      if (!extending.current) {
+        const toEnd = el.scrollHeight - el.scrollTop - h
+        if (el.scrollTop < h * EXTEND_SCREENS) {
+          extending.current = true
+          cb.current.onExtend?.('start')
+        } else if (toEnd < h * EXTEND_SCREENS) {
+          extending.current = true
+          cb.current.onExtend?.('end')
+        }
+      }
+    }
+
+    // Light snap: once scrolling has settled, a month boundary within SNAP_FRACTION of a
+    // screen pulls the view onto it. Done here rather than with CSS scroll-snap, whose
+    // `proximity` mode in Chromium is far from light and traps slow wheel scrolling.
+    let touching = false
+    // The scroll being settled came from a finger (set on touchstart, cleared by settle).
+    let byTouch = false
+    let timer = 0
+    rest.current = el.scrollTop
+    const settle = () => {
+      timer = 0
+      if (touching) return
+      const flight = inflight.current
+      if (flight) {
+        // A button scroll is travelling: wait for it to arrive (or time out).
+        if (Math.abs(el.scrollTop - flight.top) > 1 && Date.now() < flight.until) return
+        inflight.current = null
+      }
+      const h = el.clientHeight
+      const blocks = el.querySelectorAll<HTMLElement>('[data-month]')
+      if (h === 0 || blocks.length === 0) return
+      // Where this scroll started matters. A mouse-wheel notch is ~100px, under the snap
+      // distance, and each notch settles on its own -- so snapping to the *nearest*
+      // boundary pulled every notch straight back to the month it left, and on a tall
+      // portrait screen the wheel could not get anywhere. Only boundaries this scroll
+      // reached for count: the one ahead of it, or one it crossed and slightly overshot.
+      // Never the one it started on.
+      const from = rest.current
+      const st = el.scrollTop
+      const below = Math.min(blocks.length - 1, Math.max(0, Math.floor(st / h)))
+      const behindTop = blocks[below].offsetTop
+      const aheadTop = blocks[Math.min(blocks.length - 1, below + 1)].offsetTop
+      let target: number | null = null
+      if (byTouch) {
+        // A finger moves continuously rather than in notches, so a short drag let go
+        // near where it started should settle back: plain nearest boundary.
+        byTouch = false
+        const near = st - behindTop <= aheadTop - st ? behindTop : aheadTop
+        if (Math.abs(near - st) <= h * SNAP_FRACTION) target = near
+      } else if (st > from) {
+        if (aheadTop - st <= h * SNAP_FRACTION) target = aheadTop
+        else if (from < behindTop - 1 && st - behindTop <= h * SNAP_FRACTION) target = behindTop
+      } else if (st < from) {
+        if (st - behindTop <= h * SNAP_FRACTION) target = behindTop
+        else if (from > aheadTop + 1 && aheadTop - st <= h * SNAP_FRACTION) target = aheadTop
+      }
+      // > 1px also stops the snap re-triggering itself once it has arrived.
+      if (target !== null && Math.abs(target - st) > 1) {
+        rest.current = target
+        el.scrollTo({ top: target, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+      } else {
+        rest.current = st
+      }
+    }
+    const settleSoon = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(settle, SETTLE_MS)
+    }
+    const hasScrollEnd = 'onscrollend' in window
+
+    // rAF-throttled: scroll fires far more often than the screen repaints.
+    const onScroll = () => {
+      if (!frame.current) frame.current = requestAnimationFrame(check)
+      if (!hasScrollEnd) settleSoon()
+    }
+    // Touch events, not pointer events: once the browser takes a touch over to scroll it
+    // fires pointercancel straight away, which would look like the finger lifting while
+    // it is still on the glass. touchend/touchcancel only come when it really leaves.
+    const onDown = () => {
+      inflight.current = null
+      touching = true
+      byTouch = true
+    }
+    const onUp = () => {
+      touching = false
+      // A drag that ends without momentum may not produce another scroll event.
+      settleSoon()
+    }
+    // Grabbing the wheel mid-button-scroll hands control back to the user.
+    const onWheel = () => {
+      inflight.current = null
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    if (hasScrollEnd) el.addEventListener('scrollend', settle)
+    el.addEventListener('touchstart', onDown, { passive: true })
+    el.addEventListener('touchend', onUp, { passive: true })
+    el.addEventListener('touchcancel', onUp, { passive: true })
+    el.addEventListener('wheel', onWheel, { passive: true })
+
+    // Rotating the wall display or resizing the window changes the block height, which
+    // would leave scrollTop pointing between months. Re-pin the month we were on.
+    const ro =
+      typeof ResizeObserver === 'function'
+        ? new ResizeObserver(() => {
+            const target = blockFor(visible.current)
+            if (target) el.scrollTop = target.offsetTop
+            rest.current = el.scrollTop
+            sizedFor = el.clientHeight
+          })
+        : null
+    ro?.observe(el)
+
+    onScroll()
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      el.removeEventListener('scrollend', settle)
+      el.removeEventListener('touchstart', onDown)
+      el.removeEventListener('touchend', onUp)
+      el.removeEventListener('touchcancel', onUp)
+      el.removeEventListener('wheel', onWheel)
+      window.clearTimeout(timer)
+      ro?.disconnect()
+      if (frame.current) cancelAnimationFrame(frame.current)
+      frame.current = 0
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
-    <div className="month">
+    <div className="monthscroll" ref={scroller}>
+      {months.map((month) => (
+        <MonthBlock
+          key={monthKey(month)}
+          month={month}
+          full={Math.abs(differenceInCalendarMonths(month, visibleMonth)) <= FULL_RENDER_PAD}
+          ordered={ordered}
+          weekStartsOn={weekStartsOn}
+          events={events}
+          onSelectEvent={onSelectEvent}
+          onSelectSlot={onSelectSlot}
+        />
+      ))}
+    </div>
+  )
+}
+
+interface BlockProps {
+  month: Date
+  /** False for months far from the one in view: same height, no cells. */
+  full: boolean
+  ordered: string[]
+  weekStartsOn: 0 | 1
+  events: CalendarEvent[]
+  onSelectEvent: (e: CalendarEvent) => void
+  onSelectSlot: (start: Date) => void
+}
+
+function MonthBlock({ full, ...rest }: BlockProps) {
+  if (!full) {
+    // Keeps its place in the scroll (the block is height: 100% either way) so swapping
+    // between this and a full block never moves anything. A few hundred cells per month
+    // are only worth drawing for the months the user can actually reach.
+    return (
+      <section
+        className="month month--placeholder"
+        data-month={monthKey(rest.month)}
+        aria-hidden
+      >
+        <div className="month__label">{format(rest.month, 'MMMM yyyy')}</div>
+      </section>
+    )
+  }
+  return <FullMonthBlock {...rest} />
+}
+
+function FullMonthBlock({
+  month,
+  ordered,
+  weekStartsOn,
+  events,
+  onSelectEvent,
+  onSelectSlot,
+}: Omit<BlockProps, 'full'>) {
+  const { days, start, end } = useMemo(() => rangeFor('month', month, weekStartsOn), [month, weekStartsOn])
+  // Narrowed once per block so each of the ~35 cells filters a handful of events, not
+  // everything in the seven-month window. Padded a day each side because all-day events
+  // are UTC dates; overlapsDay does the exact per-cell test.
+  const blockEvents = useMemo(() => {
+    const from = addDays(start, -1)
+    const to = addDays(end, 1)
+    return events.filter((e) => new Date(e.start_at) < to && new Date(e.end_at) > from)
+  }, [events, start, end])
+
+  return (
+    <section className="month" data-month={monthKey(month)} aria-label={format(month, 'MMMM yyyy')}>
+      {/* Quiet on purpose: the toolbar title already names the month in view. This is
+          only here so the seam between two months is visible while scrolling. */}
+      <div className="month__label" aria-hidden>
+        {format(month, 'MMMM yyyy')}
+      </div>
       <div className="month__head">
         {ordered.map((l) => (
           <div key={l} className="month__headcell">
@@ -36,13 +366,13 @@ export function MonthView({
         style={{ gridTemplateRows: `repeat(${days.length / 7}, minmax(0, 1fr))` }}
       >
         {days.map((day) => {
-          const dayEvents = eventsOn(events, day)
+          const dayEvents = eventsOn(blockEvents, day)
           return (
             <div
               key={day.toISOString()}
               className="month__cell"
               data-today={isToday(day)}
-              data-outside={!isSameMonth(day, anchor)}
+              data-outside={!isSameMonth(day, month)}
             >
               {/* The whole cell adds an event, the same way an hour slot does in the
                   time grid. It sits behind the day number and the chips, so tapping
@@ -80,7 +410,7 @@ export function MonthView({
           )
         })}
       </div>
-    </div>
+    </section>
   )
 }
 

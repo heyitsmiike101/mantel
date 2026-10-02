@@ -4,6 +4,7 @@ import { useCalendars, useCreateEvent, useDeleteEvent, useUpdateEvent, useUsers 
 import type { CalendarEvent } from '../api/types'
 import { calendarLabel, providerPossessive } from '../api/providers'
 import { pickableCalendars } from './pickableCalendars'
+import { moveNote } from './moveNote'
 import { calendarsForProfile, initialSelection, profilesWithCalendars } from './eventProfiles'
 import { rememberLastTarget } from './lastEventTarget'
 import { DEFAULT_MINUTES, endFor, toLocalInput } from './eventTimes'
@@ -26,6 +27,10 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
 
   const isNew = event === null
   const readOnly = event !== null && !event.editable
+  // One occurrence of a series is its own row at the provider, and the server refuses to
+  // move those. The same test drives the "this occurrence only" note below.
+  const isOccurrence = !!event?.recurring && !event.recurrence_rule
+  const calendarLocked = readOnly || isOccurrence
 
   // Only calendars that can actually carry an event -- see pickableCalendars for why a
   // switched-off synced calendar would swallow one silently.
@@ -45,6 +50,12 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
 
   const profiles = profilesWithCalendars(choices, users)
   const profileCalendars = calendarsForProfile(choices, profileId)
+  const note = isNew
+    ? null
+    : moveNote(
+        calendars.find((c) => c.id === event.calendar_id),
+        calendars.find((c) => c.id === calendarId),
+      )
   const [start, setStart] = useState(
     toLocalInput(event ? new Date(event.start_at) : (defaultStart ?? new Date())),
   )
@@ -173,7 +184,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
               // it. Land on their first one rather than leaving a stale selection.
               setCalendarId(calendarsForProfile(choices, next)[0]?.id ?? null)
             }}
-            disabled={readOnly || !isNew}
+            disabled={calendarLocked}
           >
             {profiles.map((p) => (
               <option key={p.id ?? 'household'} value={p.id ?? ''}>
@@ -188,7 +199,7 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
           <select
             value={calendarId ?? ''}
             onChange={(e) => setCalendarId(Number(e.target.value))}
-            disabled={readOnly || !isNew}
+            disabled={calendarLocked}
           >
             {profileCalendars.map((c) => (
               <option key={c.id} value={c.id}>
@@ -197,6 +208,13 @@ export function EventModal({ event, defaultStart, onClose }: Props) {
             ))}
           </select>
         </label>
+
+        {/* role=status so a screen reader announces the move as soon as it is chosen. */}
+        {note && (
+          <p className="modal__note" role="status">
+            {note}
+          </p>
+        )}
 
         <div className="field field--row">
           <label className="field">
