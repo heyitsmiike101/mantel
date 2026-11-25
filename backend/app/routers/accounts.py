@@ -132,7 +132,6 @@ def google_callback(
         # The account is linked and the token is stored; only the first calendar
         # listing failed. Record why and send the person somewhere that explains
         # it, rather than returning a 500 that reads like the app is broken.
-        account.status = "needs_reauth"
         account.last_error = f"Could not list calendars: {exc}"[:500]
         db.commit()
         return RedirectResponse(f"/settings?tab=google&error={ERROR_DISCOVERY_FAILED}")

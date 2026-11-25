@@ -10,12 +10,37 @@ export function ScreenTab() {
     (patch: Partial<AppSettings>) => api.patch<AppSettings>('/settings', patch),
     ['settings'],
   )
+  const qc = useQueryClient()
 
   if (!settings) return null
 
+  const toggleKeyboard = () => {
+    const previous = settings
+    const enabled = !settings.on_screen_keyboard_enabled
+    qc.setQueryData<AppSettings>(['settings'], { ...settings, on_screen_keyboard_enabled: enabled })
+    save.mutate({ on_screen_keyboard_enabled: enabled }, {
+      onError: () => qc.setQueryData(['settings'], previous),
+    })
+  }
+
   return (
     <section className="panel">
-      <h2>Screensaver</h2>
+      <h2>On-screen keyboard</h2>
+      <p className="hint">Show a keyboard when you tap a text field on a wall display. Turn it off if you use a physical keyboard. Phones and tablets keep their own keyboard.</p>
+      <div className="row">
+        <div className="row__name row__name--static">On-screen keyboard</div>
+        <button
+          className="btn"
+          aria-label="On-screen keyboard"
+          aria-pressed={settings.on_screen_keyboard_enabled}
+          onClick={toggleKeyboard}
+          disabled={save.isPending}
+        >
+          {settings.on_screen_keyboard_enabled ? '☑ On' : '☐ Off'}
+        </button>
+      </div>
+
+      <h2 style={{ marginTop: 24 }}>Screensaver</h2>
       <p className="hint">
         What a wall display shows when nobody has touched it for a while. Touch the screen to
         bring the calendar back.

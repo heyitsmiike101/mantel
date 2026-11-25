@@ -251,6 +251,41 @@ def test_open_meteo_asks_for_fahrenheit_when_imperial(client, db, open_meteo):
     assert call["params"]["temperature_unit"] == "fahrenheit"
 
 
+def test_extended_forecast_uses_ten_open_meteo_days_without_changing_nws(client, db, nws):
+    daily = {
+        "time": [f"2026-08-{day:02d}" for day in range(1, 11)],
+        "temperature_2m_max": [24] * 10,
+        "temperature_2m_min": [14] * 10,
+        "weather_code": [2] * 10,
+    }
+    payload = json.loads(OPEN_METEO)
+    payload["daily"] = daily
+    nws["responses"] = {"open-meteo.com/v1/forecast": json.dumps(payload), **nws["responses"]}
+    set_location(client, weather_units="metric")
+
+    regular = client.get("/api/weather").json()
+    extended = client.get("/api/weather/extended").json()
+
+    assert regular["provider"] == "nws"
+    assert extended["provider"] == "open-meteo"
+    assert extended["place"] == "Odessa, FL"
+    assert extended["units"] == "metric"
+    assert len(extended["days"]) == 10
+    assert extended["days"][9]["date"] == "2026-08-10"
+    assert extended["days"][9]["pop"] == 0
+    meteo_call = next(c for c in nws["calls"] if "open-meteo" in c["url"])
+    assert meteo_call["params"]["forecast_days"] == 10
+    assert meteo_call["key"].startswith("openmeteo:10:")
+
+
+def test_extended_forecast_honors_missing_location_and_disabled_weather(client, db):
+    assert client.get("/api/weather/extended").json()["available"] is False
+    set_location(client, weather_enabled=False)
+    response = client.get("/api/weather/extended").json()
+    assert response["available"] is False
+    assert "turned off" in response["reason"]
+
+
 # ------------------------------ degradation ----------------------------------
 
 

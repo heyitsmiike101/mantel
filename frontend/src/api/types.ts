@@ -173,6 +173,7 @@ export interface AppSettings {
   sleep_start_hour: number
   sleep_end_hour: number
   burn_in_shift: boolean
+  on_screen_keyboard_enabled: boolean
   weather_enabled: boolean
   weather_lat: number | null
   weather_lon: number | null

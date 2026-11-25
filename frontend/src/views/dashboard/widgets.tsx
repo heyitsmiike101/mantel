@@ -1,13 +1,17 @@
-import { addDays, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from 'date-fns'
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { addDays, format, isSameDay, isSameMonth } from 'date-fns'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
-import { useEntityMutation, useEvents, useUsers, useWeather } from '../../api/hooks'
+import { useEntityMutation, useEvents, useSettings, useUsers, useWeather } from '../../api/hooks'
 import type { SharedList } from '../../api/types'
-import type { CalendarEvent } from '../../api/types'
+import type { CalendarEvent, Weather as WeatherData } from '../../api/types'
+import { rangeFor } from '../calendar/dateRange'
 import { overlapsDay } from '../calendar/overlap'
 
 export interface WidgetProps {
+  widgetId?: number
   config: Record<string, unknown>
   onConfigChange: (config: Record<string, unknown>) => void
   onOpenEvent: (event: CalendarEvent) => void
@@ -122,8 +126,7 @@ function TodayAgenda({ config, onOpenEvent, onNewEvent }: WidgetProps) {
 
 // ---------------------------------- Clock ------------------------------------
 
-function Clock({ config }: WidgetProps) {
-  const showSeconds = config.show_seconds === true
+function ClockDisplay({ showSeconds = false, compact = false }: { showSeconds?: boolean; compact?: boolean }) {
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -132,44 +135,67 @@ function Clock({ config }: WidgetProps) {
   }, [showSeconds])
 
   return (
-    <div className="clock">
+    <div className={compact ? 'clock clock--compact' : 'clock'}>
       <div className="clock__time">{format(now, showSeconds ? 'h:mm:ss' : 'h:mm')}</div>
       <div className="clock__date">{format(now, 'EEEE, MMMM d')}</div>
     </div>
   )
 }
 
+function Clock({ config }: WidgetProps) {
+  return <ClockDisplay showSeconds={config.show_seconds === true} />
+}
+
+export function DashboardClock() {
+  return <ClockDisplay compact />
+}
+
 // ------------------------------- Mini month ----------------------------------
 
 function MiniMonth({ onNewEvent }: WidgetProps) {
+  const navigate = useNavigate()
+  const { data: settings } = useSettings()
   const today = new Date()
-  const gridStart = startOfWeek(startOfMonth(today), { weekStartsOn: 0 })
-  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
-  const { data: events = [] } = useEvents(gridStart, addDays(gridStart, 42))
+  const weekStartsOn = (settings?.first_day_of_week === 1 ? 1 : 0) as 0 | 1
+  const { days, start, end } = rangeFor('month', today, weekStartsOn)
+  const { data: events = [] } = useEvents(start, end)
+  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const ordered = weekStartsOn === 1 ? [...labels.slice(1), labels[0]] : labels
 
   return (
     <>
       <div className="widget__head">
         <h3>{format(today, 'MMMM yyyy')}</h3>
+        <button className="iconbtn iconbtn--primary" aria-label="Add event" onClick={() => onNewEvent(nextHour())}>
+          +
+        </button>
       </div>
       <div className="minimonth">
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((l, i) => (
-          <div key={i} className="minimonth__label">
-            {l}
+        {ordered.map((label) => (
+          <div key={label} className="minimonth__label">
+            {label}
           </div>
         ))}
-        {days.map((d) => {
-          const has = events.some((e) => overlapsDay(e, d))
+        {days.map((day) => {
+          const dayEvents = events.filter((event) => overlapsDay(event, day))
           return (
             <button
-              key={d.toISOString()}
+              key={format(day, 'yyyy-MM-dd')}
               className="minimonth__day"
-              data-today={isSameDay(d, today)}
-              data-outside={!isSameMonth(d, today)}
-              onClick={() => onNewEvent(atNoon(d))}
+              data-today={isSameDay(day, today)}
+              data-outside={!isSameMonth(day, today)}
+              aria-label={`${format(day, 'EEEE, MMMM d')}, ${dayEvents.length} ${dayEvents.length === 1 ? 'event' : 'events'}`}
+              onClick={() => navigate(`/calendar/today?date=${format(day, 'yyyy-MM-dd')}`)}
             >
-              {format(d, 'd')}
-              {has && <span className="minimonth__dot" />}
+              <span className="minimonth__number" aria-hidden>{format(day, 'd')}</span>
+              {dayEvents.slice(0, 2).map((event) => (
+                <span key={event.id} className="minimonth__event" style={{ background: event.color }} title={event.title} aria-hidden>
+                  {event.title}
+                </span>
+              ))}
+              {dayEvents.length > 2 && (
+                <span className="minimonth__more" aria-hidden>+{dayEvents.length - 2} more</span>
+              )}
             </button>
           )
         })}
@@ -178,10 +204,310 @@ function MiniMonth({ onNewEvent }: WidgetProps) {
   )
 }
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const
+
+type Weekday = (typeof WEEKDAYS)[number]
+type ChecklistItem = { id: string; text: string; checked: boolean }
+type WeeklyChecklist = Record<Weekday, ChecklistItem[]>
+
+function readChecklist(value: unknown): WeeklyChecklist {
+  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return Object.fromEntries(WEEKDAYS.map((day) => [
+    day,
+    Array.isArray(source[day])
+      ? source[day].filter((item): item is ChecklistItem =>
+          item !== null && typeof item === 'object' &&
+          typeof item.id === 'string' && typeof item.text === 'string' &&
+          typeof item.checked === 'boolean')
+      : [],
+  ])) as WeeklyChecklist
+}
+
+export function readMealHistory(config: Record<string, unknown>): string[] {
+  const checklist = readChecklist(config.checklist)
+  const saved = Array.isArray(config.meal_history) ? config.meal_history : []
+  const names = [...saved, ...WEEKDAYS.flatMap((day) => checklist[day].map((item) => item.text))]
+  const seen = new Set<string>()
+  return names.filter((value): value is string => {
+    if (typeof value !== 'string' || !value.trim() || seen.has(value.trim().toLowerCase())) return false
+    seen.add(value.trim().toLowerCase())
+    return true
+  }).map((value) => value.trim()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+}
+
+function ChecklistDay({ day, items, pending, onAdd, onRemove }: {
+  day: Weekday
+  items: ChecklistItem[]
+  pending: boolean
+  onAdd: (day: Weekday, text: string) => Promise<unknown>
+  onRemove: (day: Weekday, id: string) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const submit = async () => {
+    if (!draft.trim() || pending) return
+    try {
+      await onAdd(day, draft.trim())
+      setDraft('')
+    } catch {
+      return
+    }
+  }
+
+  return (
+    <section className="weekcheck__day">
+      <h4>{day}</h4>
+      <ul className="weekcheck__items">
+        {items.map((item) => (
+          <li key={item.id} className="weekcheck__item">
+            <button
+              className="weekcheck__toggle"
+              disabled={pending}
+              aria-label={`Complete ${item.text} on ${day}`}
+              onClick={() => onRemove(day, item.id)}
+            />
+            <span className="weekcheck__text">{item.text}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="weekcheck__add">
+        <input
+          aria-label={`Add item to ${day}`}
+          placeholder="Add a meal or task"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void submit() }}
+        />
+        <button aria-label={`Add to ${day}`} disabled={pending} onClick={() => void submit()}>+</button>
+      </div>
+    </section>
+  )
+}
+
+type ChecklistEdit = {
+  operation: 'add' | 'remove'
+  day: Weekday
+  id: string
+  text?: string
+}
+
+export function newChecklistItemId(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('')
+}
+
+export function PreviousMealsDialog({ meals, selected, day, pending, error, added, onSelect, onDayChange, onAdd, onClose }: {
+  meals: string[]
+  selected: string
+  day: Weekday
+  pending: boolean
+  error: boolean
+  added: string
+  onSelect: (meal: string) => void
+  onDayChange: (day: Weekday) => void
+  onAdd: () => void
+  onClose: () => void
+}) {
+  return (
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="previous-meals-title">
+      <div className="modal__card weekcheck__dialog">
+        <h2 className="modal__title" id="previous-meals-title">Add previous meal</h2>
+        {meals.length === 0 ? (
+          <p className="modal__note">Meals you add to the checklist will appear here.</p>
+        ) : (
+          <div className="weekcheck__history" role="group" aria-label="Previous meals">
+            {meals.map((meal) => (
+              <button
+                key={meal}
+                className="weekcheck__history-item"
+                aria-pressed={selected === meal}
+                onClick={() => onSelect(meal)}
+              >
+                {meal}
+              </button>
+            ))}
+          </div>
+        )}
+        <label className="field">
+          Day
+          <select value={day} onChange={(e) => onDayChange(e.target.value as Weekday)}>
+            {WEEKDAYS.map((weekday) => <option key={weekday} value={weekday}>{weekday}</option>)}
+          </select>
+        </label>
+        {error && <p role="alert" className="modal__error">Could not add meal. Please try again.</p>}
+        {added && !error && <p role="status" className="modal__note">{added}</p>}
+        <div className="modal__actions">
+          <button className="btn" disabled={!selected || pending} onClick={onAdd}>Add to {day}</button>
+          <div className="modal__spacer" />
+          <button className="btn" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SevenDayChecklist({ widgetId, config }: WidgetProps) {
+  const queryClient = useQueryClient()
+  const [showPrevious, setShowPrevious] = useState(false)
+  const [selectedMeal, setSelectedMeal] = useState('')
+  const [selectedDay, setSelectedDay] = useState<Weekday>('Monday')
+  const [lastAdded, setLastAdded] = useState('')
+  const checklist = readChecklist(config.checklist)
+  const meals = readMealHistory(config)
+  const edit = useMutation({
+    mutationFn: (change: ChecklistEdit) => {
+      if (widgetId === undefined) throw new Error('Checklist widget is missing its ID')
+      return api.post<{ id: number; config: Record<string, unknown> }>(`/dashboard/widgets/${widgetId}/checklist`, change)
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData<{ id: number; config: Record<string, unknown> }[]>(['widgets'], (current) =>
+        current?.map((widget) => widget.id === saved.id ? { ...widget, config: saved.config } : widget),
+      )
+    },
+    onSettled: () => { void queryClient.invalidateQueries({ queryKey: ['widgets'] }) },
+  })
+
+  return (
+    <>
+      <div className="widget__head">
+        <h3>7 day checklist</h3>
+        <button className="iconbtn" onClick={() => setShowPrevious(true)}>Add previous</button>
+      </div>
+      {edit.isPending && !showPrevious && <p role="status">Saving checklist…</p>}
+      {edit.isError && !showPrevious && <p role="alert">Could not save checklist. Please try again.</p>}
+      <div className="weekcheck">
+        {WEEKDAYS.map((day) => (
+          <ChecklistDay
+            key={day}
+            day={day}
+            items={checklist[day]}
+            pending={edit.isPending}
+            onAdd={(selected, text) => edit.mutateAsync({
+              operation: 'add', day: selected, id: newChecklistItemId(), text,
+            })}
+            onRemove={(selected, id) => edit.mutate({ operation: 'remove', day: selected, id })}
+          />
+        ))}
+      </div>
+      {showPrevious && createPortal(
+        <PreviousMealsDialog
+          meals={meals}
+          selected={selectedMeal}
+          day={selectedDay}
+          pending={edit.isPending}
+          error={edit.isError}
+          added={lastAdded}
+          onSelect={(meal) => { setSelectedMeal(meal); setLastAdded('') }}
+          onDayChange={(day) => { setSelectedDay(day); setLastAdded('') }}
+          onAdd={() => {
+            if (!selectedMeal || edit.isPending) return
+            setLastAdded('')
+            void edit.mutateAsync({
+              operation: 'add', day: selectedDay, id: newChecklistItemId(), text: selectedMeal,
+            }).then(() => setLastAdded(`${selectedMeal} added to ${selectedDay}.`), () => {})
+          }}
+          onClose={() => { setShowPrevious(false); setLastAdded('') }}
+        />,
+        document.body,
+      )}
+    </>
+  )
+}
+
 // ---------------------------------- Note -------------------------------------
+
+export function ExtendedForecastDialog({ onClose }: { onClose: () => void }) {
+  const doneRef = useRef<HTMLButtonElement>(null)
+  const forecastRef = useRef<HTMLDivElement>(null)
+  const { data: weather, isLoading, isError } = useQuery({
+    queryKey: ['weather', 'extended'],
+    queryFn: () => api.get<WeatherData>('/weather/extended'),
+    staleTime: 10 * 60_000,
+  })
+  const seen = new Set<string>()
+  const days = (weather?.days ?? []).filter((day) => {
+    if (seen.has(day.date)) return false
+    seen.add(day.date)
+    return true
+  }).slice(0, 10)
+  const unit = weather?.units === 'metric' ? 'C' : 'F'
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    doneRef.current?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        const target = document.activeElement === doneRef.current
+          ? forecastRef.current ?? doneRef.current
+          : doneRef.current
+        target?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
+  }, [onClose])
+
+  return (
+    <div className="modal" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <div className="modal__card note__forecast-dialog" role="dialog" aria-modal="true" aria-labelledby="extended-forecast-title" aria-describedby="extended-forecast-source">
+        <h2 className="modal__title" id="extended-forecast-title">10-day forecast</h2>
+        <p className="modal__note" id="extended-forecast-source">Open-Meteo forecast{weather?.place ? ` · ${weather.place}` : ''} · {unit === 'C' ? '°C' : '°F'}</p>
+        {isLoading ? (
+          <p className="modal__note" role="status">Loading forecast…</p>
+        ) : isError ? (
+          <p className="modal__error" role="alert">Could not load the forecast. Please try again later.</p>
+        ) : !weather?.available ? (
+          <p className="modal__note">{weather?.reason ?? 'Forecast unavailable.'}</p>
+        ) : days.length === 0 ? (
+          <p className="modal__note">No forecast days available.</p>
+        ) : (
+          <div ref={forecastRef} className="note__forecast-list" role="region" aria-label="Daily forecast" tabIndex={0}>
+            <ol className="note__forecast-cards">
+              {days.map((day) => {
+                const [year, month, date] = day.date.split('-').map(Number)
+                const localDate = new Date(year, month - 1, date)
+                return (
+                  <li className="wx__day note__forecast-card" key={day.date}>
+                    <time dateTime={day.date} aria-label={format(localDate, 'EEEE, MMMM d, yyyy')}>
+                      <span className="wx__dayname">{format(localDate, 'EEE')}</span>
+                      <span className="note__forecast-date">{format(localDate, 'MMM d')}</span>
+                    </time>
+                    <span className="wx__dayicon" aria-hidden="true">{weatherIcon(day.short)}</span>
+                    <div className="note__forecast-temps">
+                      <span className="wx__dayhigh" aria-label={`High ${day.high ?? '–'}°${unit}`}>{day.high ?? '–'}°</span>
+                      <span aria-hidden="true"> / </span>
+                      <span className="wx__daylow" aria-label={`Low ${day.low ?? '–'}°${unit}`}>{day.low ?? '–'}°</span>
+                    </div>
+                    <span className="note__forecast-condition">{day.short ?? 'Conditions unavailable'}</span>
+                    <span className="wx__daypop note__forecast-rain">{day.pop}% rain</span>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+        )}
+        <div className="modal__actions">
+          <div className="modal__spacer" />
+          <button ref={doneRef} type="button" className="btn" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function Note({ config, onConfigChange }: WidgetProps) {
   const [text, setText] = useState(typeof config.text === 'string' ? config.text : '')
+  const [showForecast, setShowForecast] = useState(false)
+  const closeForecast = useCallback(() => setShowForecast(false), [])
+  const { data: weather, isLoading } = useWeather()
+  const unit = weather?.units === 'metric' ? 'C' : 'F'
+  const forecast = (weather?.days ?? []).slice(0, 3)
+
   return (
     <>
       <div className="widget__head">
@@ -194,6 +520,43 @@ function Note({ config, onConfigChange }: WidgetProps) {
         onChange={(e) => setText(e.target.value)}
         onBlur={() => onConfigChange({ ...config, text })}
       />
+      <button type="button" className="note__weather" aria-label="Weather — open 10-day forecast" aria-haspopup="dialog" onClick={() => setShowForecast(true)}>
+        {isLoading ? (
+          <span className="widget__empty">Loading weather…</span>
+        ) : !weather?.available ? (
+          <span className="widget__empty">{weather?.reason ?? 'Weather is unavailable.'}</span>
+        ) : (
+          <>
+            <span className="note__weather-head">
+              <span className="note__place" title={weather.place ?? undefined}>{weather.place ?? 'Weather'}</span>
+              {weather.stale && <span className="wx__stale">cached</span>}
+            </span>
+            {weather.current && (
+              <span className="note__current">
+                <span className="note__icon" aria-hidden="true">{weatherIcon(weather.current.short, weather.current.is_daytime)}</span>
+                <strong>{weather.current.temp ?? '–'}°{unit}</strong>
+                <span className="note__condition">{weather.current.short ?? 'Current conditions'}</span>
+              </span>
+            )}
+            {forecast.length > 0 && (
+              <span className="note__forecast" aria-label="Forecast">
+                {forecast.map((day, index) => (
+                  <span className="note__forecast-day" key={day.date}>
+                    <span>{index === 0 ? 'Today' : dayLabel(day.date)}</span>
+                    <span aria-hidden="true">{weatherIcon(day.short)}</span>
+                    <span>{day.high ?? '–'}° / {day.low ?? '–'}°</span>
+                  </span>
+                ))}
+              </span>
+            )}
+            {weather.alerts?.slice(0, 1).map((alert) => (
+              <span key={alert.event} className="wx__alert" title={alert.headline}>{alert.event}</span>
+            ))}
+            {!weather.current && forecast.length === 0 && <span className="widget__empty">Forecast unavailable.</span>}
+          </>
+        )}
+      </button>
+      {showForecast && createPortal(<ExtendedForecastDialog onClose={closeForecast} />, document.body)}
     </>
   )
 }
@@ -459,6 +822,7 @@ export const WIDGETS: Record<string, WidgetDef> = {
   today_agenda: { component: TodayAgenda, label: 'Today by person' },
   clock: { component: Clock, label: 'Clock and date' },
   mini_month: { component: MiniMonth, label: 'Month at a glance' },
+  seven_day_checklist: { component: SevenDayChecklist, label: '7 day checklist' },
   weather: { component: Weather, label: 'Weather' },
   list: { component: ListWidget, label: 'Shared list' },
   countdown: { component: Countdown, label: 'Countdown' },
@@ -477,12 +841,6 @@ function nextHour(): Date {
   d.setMinutes(0, 0, 0)
   d.setHours(d.getHours() + 1)
   return d
-}
-
-function atNoon(d: Date): Date {
-  const out = new Date(d)
-  out.setHours(12, 0, 0, 0)
-  return out
 }
 
 function whenLabel(e: CalendarEvent): string {

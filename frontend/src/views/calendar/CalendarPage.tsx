@@ -9,7 +9,7 @@ import {
   startOfMonth,
 } from 'date-fns'
 import { useRef, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useEvents, useSettings, useUsers } from '../../api/hooks'
 import type { CalendarEvent } from '../../api/types'
 import { EventModal } from '../../components/EventModal'
@@ -56,10 +56,11 @@ const VIEW_TABS = [
 export function CalendarPage() {
   const { view } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { data: settings } = useSettings()
   const { data: users = [] } = useUsers()
   const { toggle, showEveryone, isVisible, anyHidden } = usePersonFilter()
-  const [anchor, setAnchor] = useState(() => new Date())
+  const [anchor, setAnchor] = useState(() => dateFromQuery(searchParams.get('date')) ?? new Date())
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
   const [creatingAt, setCreatingAt] = useState<Date | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -344,6 +345,13 @@ export function CalendarPage() {
       )}
     </div>
   )
+}
+
+export function dateFromQuery(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return format(date, 'yyyy-MM-dd') === value ? date : null
 }
 
 function nextHour(): Date {

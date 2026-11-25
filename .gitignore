@@ -13,7 +13,10 @@ __pycache__/
 # dropped, which is worse than having none.
 *.egg-info/
 node_modules/
-frontend/dist/
+dist/
+build/
+.cache/
+*.log
 .DS_Store
 
 # TypeScript incremental build state -- machine-local, not source.

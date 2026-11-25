@@ -6,6 +6,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import get_settings
+from .services import event_history
 
 settings = get_settings()
 _is_sqlite = settings.database_url.startswith("sqlite")
@@ -38,6 +39,8 @@ def _sqlite_pragmas(dbapi_connection, connection_record):
 
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
+
+event_history.register(SessionLocal)
 
 
 def get_db() -> Iterator[Session]:

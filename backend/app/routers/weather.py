@@ -27,6 +27,15 @@ def _settings(db: Session) -> dict:
     ),
 )
 def get_weather(db: Session = Depends(get_db)) -> dict:
+    return _forecast(db)
+
+
+@router.get("/extended", summary="Ten-day weather forecast")
+def get_extended_weather(db: Session = Depends(get_db)) -> dict:
+    return _forecast(db, provider="open-meteo")
+
+
+def _forecast(db: Session, provider: str | None = None) -> dict:
     settings = _settings(db)
     if not settings.get("weather_enabled", True):
         return weather_service.unavailable("Weather is turned off in settings.")
@@ -39,7 +48,7 @@ def get_weather(db: Session = Depends(get_db)) -> dict:
         db,
         float(lat),
         float(lon),
-        str(settings.get("weather_provider", "auto")),
+        provider or str(settings.get("weather_provider", "auto")),
         str(settings.get("weather_units", "imperial")),
     )
     result["place"] = settings.get("weather_place") or None

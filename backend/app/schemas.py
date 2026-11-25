@@ -177,6 +177,39 @@ class EventOut(BaseModel):
     editable: bool
 
 
+class EventHistoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    event_id: int
+    calendar_id: int
+    calendar_name: str
+    calendar_source: str
+    calendar_created_at: datetime
+    action: str
+    recorded_at: datetime
+    title: str
+    description: str | None
+    location: str | None
+    start_at: datetime
+    end_at: datetime
+    all_day: bool
+    timezone: str | None
+    recurrence_rule: str | None
+    exdates: str | None
+    status: str
+
+
+class EventHistoryPage(BaseModel):
+    items: list[EventHistoryOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class EventRestore(BaseModel):
+    calendar_id: int | None = None
+
+
 # ---------------------------- Dashboard --------------------------------------
 
 

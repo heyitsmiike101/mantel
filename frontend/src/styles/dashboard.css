@@ -15,8 +15,15 @@
   background: var(--bg-elev);
 }
 
-.dash__title {
+.dash__heading {
+  display: flex;
+  align-items: center;
   flex: 1;
+  min-width: 0;
+  gap: 18px;
+}
+
+.dash__title {
   margin: 0;
   font-size: var(--font-lg);
 }
@@ -70,15 +77,23 @@
   grid-column: span 4;
 }
 
+.dash__grid > .widget[data-size='small']:first-child:has(.note) + .widget[data-size='medium']:has(.minimonth) {
+  grid-column: span 3;
+}
+
 @media (max-width: 900px) {
-  .widget[data-size='large'] {
+  .widget[data-size='large'],
+  .dash__grid > .widget[data-size='small']:first-child:has(.note):has(+ .widget[data-size='medium']:has(.minimonth)),
+  .dash__grid > .widget[data-size='small']:first-child:has(.note) + .widget[data-size='medium']:has(.minimonth) {
     grid-column: span 2;
   }
 }
 
 @media (max-width: 560px) {
   .widget[data-size='medium'],
-  .widget[data-size='large'] {
+  .widget[data-size='large'],
+  .dash__grid > .widget[data-size='small']:first-child:has(.note):has(+ .widget[data-size='medium']:has(.minimonth)),
+  .dash__grid > .widget[data-size='small']:first-child:has(.note) + .widget[data-size='medium']:has(.minimonth) {
     grid-column: span 1;
   }
 }
@@ -221,12 +236,43 @@
   font-size: var(--font-sm);
 }
 
+.clock--compact {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0;
+  text-align: left;
+  min-width: 0;
+}
+
+.clock--compact .clock__time {
+  font-size: var(--font-lg);
+  white-space: nowrap;
+}
+
+.clock--compact .clock__date {
+  white-space: nowrap;
+}
+
+@media (max-width: 650px) {
+  .dash__heading {
+    flex-wrap: wrap;
+    gap: 0 10px;
+  }
+
+  .clock--compact {
+    flex-wrap: wrap;
+    gap: 0 8px;
+  }
+}
+
 /* ------------------------------- mini month -------------------------------- */
 
 .minimonth {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 0;
 }
 
 .minimonth__label {
@@ -236,34 +282,180 @@
 }
 
 .minimonth__day {
-  position: relative;
-  aspect-ratio: 1;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
   min-width: 0;
-  border-radius: 8px;
+  min-height: 72px;
+  padding: 4px 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   font-size: var(--font-xs);
   color: var(--text);
+  text-align: left;
 }
 
 .minimonth__day[data-outside='true'] {
-  opacity: 0.35;
+  opacity: 0.55;
 }
 
 .minimonth__day[data-today='true'] {
-  background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 700;
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
-.minimonth__dot {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
+.minimonth__number {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.minimonth__event {
+  display: block;
+  min-width: 0;
+  padding: 2px 3px;
+  border-radius: 3px;
+  color: var(--chip-ink);
+  font-size: calc(0.65rem * var(--scale));
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimonth__more {
+  color: var(--text-dim);
+  font-size: calc(0.65rem * var(--scale));
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.weekcheck {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+}
+
+.weekcheck__day {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.weekcheck__day h4 {
+  margin: 0;
+  font-size: var(--font-sm);
+}
+
+.weekcheck__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.weekcheck__item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.weekcheck__toggle,
+.weekcheck__add button {
+  min-width: 36px;
+  min-height: 36px;
+  flex: 0 0 auto;
+  color: var(--text);
+}
+
+.weekcheck__toggle {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.weekcheck__toggle:hover,
+.weekcheck__toggle:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.weekcheck__text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-sm);
+}
+
+.weekcheck__add {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.weekcheck__add input {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  padding: 8px;
+  font: inherit;
+  font-size: var(--font-sm);
+}
+
+.weekcheck__dialog {
+  max-height: calc(var(--app-height, 100vh) - 32px);
+}
+
+.weekcheck__history {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(45vh, 360px);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.weekcheck__history-item {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.weekcheck__history-item[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.widget:has(.minimonth) {
+  container-type: inline-size;
+}
+
+@container (max-width: 320px) {
+  .minimonth {
+    gap: 2px;
+  }
+
+  .minimonth__day {
+    min-height: 66px;
+    padding: 3px 1px;
+  }
+
+  .minimonth__event {
+    padding-inline: 1px;
+  }
 }
 
 /* ---------------------------------- note ----------------------------------- */
@@ -278,6 +470,321 @@
   font: inherit;
   padding: 10px;
   resize: vertical;
+}
+
+.widget:has(.note__weather) .note {
+  resize: none;
+}
+
+.note__weather {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.note__weather:hover .note__place {
+  color: var(--accent);
+}
+
+.note__weather:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.note__weather-head,
+.note__current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.note__place,
+.note__condition {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note__place {
+  flex: 1;
+  font-size: var(--font-sm);
+  color: var(--text-dim);
+}
+
+.note__current strong {
+  font-size: var(--font-lg);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.note__icon {
+  font-size: var(--font-lg);
+  line-height: 1;
+}
+
+.note__condition {
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.note__forecast {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.note__forecast-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 2px;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.note__forecast-day span:first-child {
+  color: var(--text-dim);
+}
+
+.note__forecast-dialog {
+  width: 100%;
+  min-width: 0;
+  max-height: calc(var(--app-height, 100dvh) - 24px);
+}
+
+.note__forecast-dialog > .modal__title,
+.note__forecast-dialog > .modal__note,
+.note__forecast-dialog > .modal__error {
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
+}
+
+.note__forecast-list {
+  min-width: 0;
+  min-height: 0;
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  border-radius: 10px;
+}
+
+.note__forecast-list:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.note__forecast-cards {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note__forecast-card.wx__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 10px;
+  border: 1px solid var(--border);
+  font-size: var(--font-sm);
+  line-height: 1.3;
+}
+
+.note__forecast-card time {
+  display: grid;
+  gap: 4px;
+}
+
+.note__forecast-card .wx__dayname {
+  font-size: var(--font-sm);
+  letter-spacing: 0.08em;
+}
+
+.note__forecast-date {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.note__forecast-temps {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 3px;
+  max-width: 100%;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.note__forecast-temps .wx__dayhigh {
+  color: var(--text);
+  font-size: var(--font-xl);
+}
+
+.note__forecast-temps .wx__daylow {
+  font-size: var(--font-lg);
+}
+
+.note__forecast-condition {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.6em;
+  overflow-wrap: anywhere;
+}
+
+.note__forecast-rain.wx__daypop {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: var(--font-sm);
+}
+
+.note__forecast-dialog > .modal__actions {
+  flex-shrink: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1399px) {
+  .note__forecast-cards {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .note__forecast-card.wx__day {
+    gap: 6px;
+    padding: 12px 8px;
+  }
+
+  .note__forecast-temps .wx__dayhigh {
+    font-size: var(--font-lg);
+  }
+
+  .note__forecast-temps .wx__daylow {
+    font-size: var(--font-md);
+  }
+}
+
+@media (min-width: 601px) and (max-height: 700px) {
+  .note__forecast-card.wx__day {
+    gap: 4px;
+    padding: 8px 6px;
+  }
+
+  .note__forecast-card time {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+
+  .note__forecast-condition {
+    min-height: 0;
+  }
+
+  .note__forecast-rain.wx__daypop {
+    padding-top: 4px;
+  }
+}
+
+@media (max-width: 600px) {
+  .note__forecast-dialog {
+    max-height: calc(var(--app-height, 100dvh) - 12px);
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .note__forecast-dialog > .modal__note {
+    font-size: var(--font-xs);
+    line-height: 1.2;
+  }
+
+  .note__forecast-list {
+    padding: 2px;
+  }
+
+  .note__forecast-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .note__forecast-card.wx__day {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 6px;
+    padding: 5px 6px;
+    font-size: var(--font-xs);
+    line-height: 1.2;
+    text-align: left;
+  }
+
+  .note__forecast-card time {
+    grid-column: 1;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 6px;
+  }
+
+  .note__forecast-card .wx__dayname {
+    font-size: var(--font-xs);
+    letter-spacing: 0;
+  }
+
+  .note__forecast-card .wx__dayicon {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .note__forecast-temps {
+    grid-column: 1;
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+
+  .note__forecast-temps .wx__dayhigh {
+    font-size: var(--font-md);
+  }
+
+  .note__forecast-temps .wx__daylow {
+    font-size: var(--font-sm);
+  }
+
+  .note__forecast-condition,
+  .note__forecast-rain.wx__daypop {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+
+  .note__forecast-rain.wx__daypop {
+    padding-top: 3px;
+    font-size: var(--font-xs);
+  }
+
+  .note__forecast-dialog > .modal__actions {
+    padding-top: 6px;
+  }
 }
 
 /* ------------------------------ widget picker ------------------------------ */

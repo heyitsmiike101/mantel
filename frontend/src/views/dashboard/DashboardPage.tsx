@@ -4,7 +4,7 @@ import { api } from '../../api/client'
 import { useEntityMutation } from '../../api/hooks'
 import type { CalendarEvent } from '../../api/types'
 import { EventModal } from '../../components/EventModal'
-import { WIDGETS } from './widgets'
+import { DashboardClock, WIDGETS } from './widgets'
 
 interface Widget {
   id: number
@@ -29,10 +29,10 @@ export function DashboardPage() {
   const [openEvent, setOpenEvent] = useState<CalendarEvent | null>(null)
   const [newEventAt, setNewEventAt] = useState<Date | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-
   const { data: widgets = [] } = useQuery({
     queryKey: ['widgets'],
     queryFn: () => api.get<Widget[]>('/dashboard/widgets'),
+    refetchInterval: 15_000,
   })
   const { data: types = [] } = useQuery({
     queryKey: ['widget-types'],
@@ -78,7 +78,10 @@ export function DashboardPage() {
   return (
     <div className="dash">
       <header className="dash__bar">
-        <h1 className="dash__title">Dashboard</h1>
+        <div className="dash__heading">
+          <h1 className="dash__title">Dashboard</h1>
+          <DashboardClock />
+        </div>
         <button className="iconbtn" onClick={() => setAdding(true)}>
           + Widget
         </button>
@@ -127,6 +130,7 @@ export function DashboardPage() {
               )}
               {def ? (
                 <def.component
+                  widgetId={w.id}
                   config={w.config}
                   onConfigChange={(config) => patchWidget.mutate({ id: w.id, config })}
                   onOpenEvent={showEvent}

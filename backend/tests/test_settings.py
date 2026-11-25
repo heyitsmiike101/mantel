@@ -17,6 +17,24 @@ def test_bookmark_settings_round_trip(client):
     assert body["bookmark_url"] == "http://dash.lan/?view=wall"
 
 
+def test_on_screen_keyboard_defaults_on_and_persists_toggle(client):
+    assert client.get("/api/settings").json()["on_screen_keyboard_enabled"] is True
+
+    for enabled in (False, True, False):
+        response = client.patch(
+            "/api/settings", json={"on_screen_keyboard_enabled": enabled}
+        )
+        assert response.status_code == 200
+        assert response.json()["on_screen_keyboard_enabled"] is enabled
+        assert client.get("/api/settings").json()["on_screen_keyboard_enabled"] is enabled
+
+    response = client.patch(
+        "/api/settings", json={"on_screen_keyboard_enabled": "false"}
+    )
+    assert response.status_code == 400
+    assert client.get("/api/settings").json()["on_screen_keyboard_enabled"] is False
+
+
 def test_theme_defaults_to_midnight_and_accepts_each_shipped_theme(client):
     """Midnight is the look every existing install already has, so it must stay the default."""
     assert client.get("/api/settings").json()["theme"] == "midnight"

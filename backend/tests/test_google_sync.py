@@ -324,3 +324,34 @@ def test_one_broken_account_does_not_stop_discovery_for_the_others(db, fake, gca
 
     assert google_sync.discover_all(db) == 1
     assert calls["n"] == 2
+
+
+def test_failed_initial_google_discovery_can_retry_without_relinking(
+    client, db, fake, gcal, monkeypatch
+):
+    from app.routers import accounts as accounts_router
+    from app.services.google_api import GoogleApiError
+
+    account = db.get(LinkedAccount, gcal.linked_account_id)
+    monkeypatch.setattr(accounts_router, "read_state", lambda state: {"user_id": account.user_id})
+    monkeypatch.setattr(
+        accounts_router.google_oauth, "exchange_code", lambda cfg, code: {"access_token": "at"}
+    )
+    monkeypatch.setattr(accounts_router.google_oauth, "fetch_email", lambda token: account.email)
+    real_discover = google_sync.discover_calendars
+
+    def unavailable(session, linked_account):
+        raise GoogleApiError(403, "Calendar API unavailable")
+
+    monkeypatch.setattr(google_sync, "discover_calendars", unavailable)
+    response = client.get(
+        "/api/accounts/google/callback?state=valid&code=valid", follow_redirects=False
+    )
+    assert "error=calendar_list_failed" in response.headers["location"]
+    db.refresh(account)
+    assert account.status == "active"
+    assert "Calendar API unavailable" in account.last_error
+
+    monkeypatch.setattr(google_sync, "discover_calendars", real_discover)
+    fake.calendars = [{"id": "new", "summary": "New calendar", "accessRole": "owner"}]
+    assert client.post("/api/sync/calendars").json()["new_calendars"] == 1
