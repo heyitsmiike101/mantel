@@ -35,6 +35,7 @@ DEFAULT_SETTINGS: dict[str, object] = {
     "sleep_start_hour": 23,
     "sleep_end_hour": 7,
     "burn_in_shift": True,
+    "on_screen_keyboard_enabled": True,
     # Weather. Empty coordinates mean the widget prompts for a location instead of
     # guessing, which would be worse than asking.
     "weather_enabled": True,

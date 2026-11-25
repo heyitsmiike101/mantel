@@ -349,7 +349,7 @@ def _open_meteo(session: Session, lat: float, lon: float, units: str) -> dict:
         "hourly": "temperature_2m,precipitation_probability,weather_code",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,"
         "precipitation_probability_max",
-        "forecast_days": 7,
+        "forecast_days": 10,
         "timezone": "auto",
     }
     if imperial:
@@ -357,7 +357,7 @@ def _open_meteo(session: Session, lat: float, lon: float, units: str) -> dict:
 
     body, stale = fetch(
         session,
-        f"openmeteo:{round(lat, 4)},{round(lon, 4)}:{units}",
+        f"openmeteo:10:{round(lat, 4)},{round(lon, 4)}:{units}",
         "https://api.open-meteo.com/v1/forecast",
         FORECAST_TTL,
         params=params,
@@ -383,15 +383,17 @@ def _open_meteo(session: Session, lat: float, lon: float, units: str) -> dict:
         "is_daytime": bool(cur.get("is_day", 1)),
     }
 
+    daily_dates = daily.get("time", [])
+    daily_pop = daily.get("precipitation_probability_max") or [0] * len(daily_dates)
     days = [
         {
             "date": date,
             "high": _round(daily["temperature_2m_max"][i]),
             "low": _round(daily["temperature_2m_min"][i]),
-            "pop": daily.get("precipitation_probability_max", [0] * 7)[i] or 0,
+            "pop": daily_pop[i] or 0,
             "short": WMO.get(daily["weather_code"][i], "—"),
         }
-        for i, date in enumerate(daily.get("time", []))
+        for i, date in enumerate(daily_dates)
     ]
 
     hourly_block = data.get("hourly") or {}

@@ -59,6 +59,11 @@ def update_app_settings(payload: dict, db: Session = Depends(get_db)) -> dict:
     if unknown:
         raise HTTPException(400, f"Unknown settings: {', '.join(sorted(unknown))}")
 
+    if "on_screen_keyboard_enabled" in payload and not isinstance(
+        payload["on_screen_keyboard_enabled"], bool
+    ):
+        raise HTTPException(400, "on_screen_keyboard_enabled must be true or false")
+
     if "theme" in payload and payload["theme"] not in THEMES:
         raise HTTPException(
             400, f"Unknown theme {payload['theme']!r}. Choose one of: {', '.join(THEMES)}"

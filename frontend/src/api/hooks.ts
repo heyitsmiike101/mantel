@@ -43,6 +43,7 @@ export function useEvents(start: Date, end: Date, userIds: number[] = []) {
       if (people) params.set('user_ids', people)
       return api.get<CalendarEvent[]>(`/events?${params}`)
     },
+    refetchInterval: 60_000,
   })
 }
 

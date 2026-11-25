@@ -1,14 +1,21 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
-from ..models import Calendar, Event
-from ..schemas import EventCreate, EventOut, EventUpdate
+from ..models import Calendar, Event, EventHistory
+from ..schemas import (
+    EventCreate,
+    EventHistoryPage,
+    EventOut,
+    EventRestore,
+    EventUpdate,
+)
 from ..serializers import event_out
 from ..services import recurrence
+from ..services.event_history import FIELDS
 from ..services.notify import calendar_changed
 from ..services.pushqueue import mark_pending, request_push
 from ..timeutil import to_utc
@@ -183,6 +190,65 @@ def create_event(payload: EventCreate, db: Session = Depends(get_db)) -> EventOu
         except recurrence.RecurrenceError as exc:
             raise HTTPException(400, str(exc)) from exc
     ev = Event(**data, origin="local")
+    ev.recurrence_end = recurrence.series_end(
+        ev.recurrence_rule, ev.start_at, ev.end_at - ev.start_at
+    )
+    mark_pending(ev, cal, "pending_create")
+    db.add(ev)
+    db.commit()
+    request_push()
+    calendar_changed(db)
+    return event_out(_load(db, ev.id))
+
+
+@router.get("/history", response_model=EventHistoryPage, summary="List event snapshots")
+def list_event_history(
+    event_id: int | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> EventHistoryPage:
+    condition = EventHistory.event_id == event_id if event_id is not None else True
+    total = db.scalar(select(func.count()).select_from(EventHistory).where(condition)) or 0
+    rows = db.scalars(
+        select(EventHistory)
+        .where(condition)
+        .order_by(EventHistory.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return EventHistoryPage(items=rows, total=total, limit=limit, offset=offset)
+
+
+@router.post(
+    "/history/{history_id}/restore",
+    response_model=EventOut,
+    status_code=201,
+    summary="Restore a snapshot as a new event",
+)
+def restore_event(
+    history_id: int, payload: EventRestore, db: Session = Depends(get_db)
+) -> EventOut:
+    history = db.get(EventHistory, history_id)
+    if history is None:
+        raise HTTPException(404, "Event snapshot not found")
+    calendar_id = payload.calendar_id if payload.calendar_id is not None else history.calendar_id
+    cal = db.get(Calendar, calendar_id)
+    if payload.calendar_id is None and (
+        cal is None
+        or cal.created_at != history.calendar_created_at
+        or not cal.writable
+        or (not cal.is_local and not cal.sync_enabled)
+    ):
+        raise HTTPException(400, "Original calendar is unavailable; choose a writable destination")
+    cal = _writable_calendar(db, calendar_id)
+    if not cal.is_local and not cal.sync_enabled:
+        raise HTTPException(400, f"Syncing is switched off for calendar '{cal.name}'")
+    ev = Event(
+        calendar_id=cal.id,
+        origin="local",
+        **{f: getattr(history, f) for f in FIELDS},
+    )
     ev.recurrence_end = recurrence.series_end(
         ev.recurrence_rule, ev.start_at, ev.end_at - ev.start_at
     )

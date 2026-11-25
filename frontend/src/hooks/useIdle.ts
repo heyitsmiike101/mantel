@@ -59,6 +59,10 @@ export function isWithinSleepWindow(startHour: number, endHour: number, now = ne
     : hour >= startHour || hour < endHour
 }
 
+export function shouldShowOvernightClock(asleep: boolean, wakeUntil: number, now = Date.now()): boolean {
+  return asleep && now >= wakeUntil
+}
+
 export function useSleepWindow(enabled: boolean, startHour: number, endHour: number): boolean {
   const [asleep, setAsleep] = useState(() =>
     enabled ? isWithinSleepWindow(startHour, endHour) : false,

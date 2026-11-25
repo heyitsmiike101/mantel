@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { useEvents, useSettings } from '../api/hooks'
 import type { Photo } from '../api/types'
-import { useIdle, useSleepWindow } from '../hooks/useIdle'
+import { shouldShowOvernightClock, useIdle, useSleepWindow } from '../hooks/useIdle'
 import { usePhoneViewport } from '../hooks/usePhoneViewport'
 
 /**
@@ -34,13 +34,25 @@ export function Screensaver() {
     settings?.sleep_end_hour ?? 7,
   )
 
+  const [wakeUntil, setWakeUntil] = useState(0)
+  useEffect(() => {
+    if (!asleep) {
+      setWakeUntil(0)
+      return
+    }
+    if (!wakeUntil) return
+    const timer = setTimeout(() => setWakeUntil(0), Math.max(0, wakeUntil - Date.now()))
+    return () => clearTimeout(timer)
+  }, [asleep, wakeUntil])
+
   const { data: photos = [] } = useQuery({
     queryKey: ['photos'],
     queryFn: () => api.get<Photo[]>('/photos'),
     enabled: mode !== 'clock',
   })
 
-  const showing = asleep || idle
+  const overnightClock = shouldShowOvernightClock(asleep, wakeUntil)
+  const showing = overnightClock || (!asleep && idle)
   const usePhotos = mode !== 'clock' && photos.length > 0
 
   // Any interaction dismisses it; the capture-phase handler stops that same
@@ -53,9 +65,16 @@ export function Screensaver() {
 
   if (!showing) return null
 
-  if (asleep) {
+  if (overnightClock) {
     return (
-      <div className="saver saver--sleep" onPointerDownCapture={dismiss} role="presentation">
+      <div
+        className="saver saver--sleep"
+        onPointerDownCapture={(e) => {
+          dismiss(e)
+          setWakeUntil(Date.now() + 60_000)
+        }}
+        role="presentation"
+      >
         <SleepClock />
       </div>
     )

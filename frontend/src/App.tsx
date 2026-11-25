@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useSettings } from './api/hooks'
 import { bookmarkLabel, safeBookmarkUrl } from './components/bookmark'
 import { Screensaver } from './components/Screensaver'
+import { OnScreenKeyboard } from './components/OnScreenKeyboard'
 import { VersionBadge } from './components/VersionBadge'
 import { useBurnInShift } from './hooks/useIdle'
 import { useOnline } from './hooks/useOnline'
@@ -98,6 +99,7 @@ export function App() {
       </nav>
       {!online && <div className="offline">Offline — showing the last known schedule</div>}
       <Screensaver />
+      <OnScreenKeyboard enabled={settings?.on_screen_keyboard_enabled ?? true} />
     </div>
   )
 }

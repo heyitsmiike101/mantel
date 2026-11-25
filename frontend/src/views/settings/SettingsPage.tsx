@@ -6,6 +6,7 @@ import { groupCalendarsBySource } from './groupCalendars'
 import { useCalendars, useEntityMutation, useSettings, useUsers } from '../../api/hooks'
 import type { AppSettings, CalendarInfo, User } from '../../api/types'
 import { ApiTab } from './ApiTab'
+import { BackupsTab } from './BackupsTab'
 import { GoogleTab } from './GoogleTab'
 import { ICloudTab } from './ICloudTab'
 import { ScreenTab } from './ScreenTab'
@@ -20,6 +21,7 @@ const TABS = [
   'google',
   'icloud',
   'calendars',
+  'backups',
   'display',
   'screen',
   'weather',
@@ -34,6 +36,7 @@ const TAB_LABELS: Record<Tab, string> = {
   google: 'Google',
   icloud: 'Apple',
   calendars: 'Calendars',
+  backups: 'Backups',
   display: 'Display',
   screen: 'Screen',
   weather: 'Weather',
@@ -65,6 +68,7 @@ export function SettingsPage() {
         {tab === 'google' && <GoogleTab />}
         {tab === 'icloud' && <ICloudTab />}
         {tab === 'calendars' && <CalendarsTab />}
+        {tab === 'backups' && <BackupsTab />}
         {tab === 'display' && <DisplayTab />}
         {tab === 'screen' && <ScreenTab />}
         {tab === 'weather' && <WeatherTab />}

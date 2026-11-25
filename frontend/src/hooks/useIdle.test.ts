@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isWithinSleepWindow } from './useIdle'
+import { isWithinSleepWindow, shouldShowOvernightClock } from './useIdle'
 
 const at = (hour: number, minute = 0) => new Date(2026, 6, 30, hour, minute)
 
@@ -29,5 +29,20 @@ describe('isWithinSleepWindow', () => {
   it('is inclusive of the start minute and exclusive of the end', () => {
     expect(isWithinSleepWindow(22, 8, at(22, 0))).toBe(true)
     expect(isWithinSleepWindow(22, 8, at(8, 0))).toBe(false)
+  })
+})
+
+describe('shouldShowOvernightClock', () => {
+  it('reveals the calendar for one minute after touch, then resumes overnight mode', () => {
+    const touchedAt = at(23).getTime()
+    const wakeUntil = touchedAt + 60_000
+    expect(shouldShowOvernightClock(true, 0, touchedAt)).toBe(true)
+    expect(shouldShowOvernightClock(true, wakeUntil, touchedAt)).toBe(false)
+    expect(shouldShowOvernightClock(true, wakeUntil, wakeUntil - 1)).toBe(false)
+    expect(shouldShowOvernightClock(true, wakeUntil, wakeUntil)).toBe(true)
+  })
+
+  it('does not show overnight mode outside the sleep window', () => {
+    expect(shouldShowOvernightClock(false, 0, at(7).getTime())).toBe(false)
   })
 })

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..models import Calendar, Event, LinkedAccount
 from ..timeutil import utcnow_naive
-from . import recurrence
+from . import event_history, recurrence
 from .notify import calendar_changed
 from .providers.base import (
     OCCURRENCE_SEP,
@@ -127,6 +127,12 @@ def pull_calendar(db: Session, cal: Calendar) -> int:
         # before and start clean -- anything created locally and not yet pushed is
         # preserved, because it does not carry this provider's origin.
         log.info("Sync token expired for calendar %s; doing a full resync", cal.id)
+        stale = db.scalars(
+            select(Event).where(Event.calendar_id == cal.id, Event.origin == account.provider)
+        ).all()
+        for row in stale:
+            if row.sync_state != "pending_delete":
+                event_history.snapshot(db, row, "deleted")
         db.execute(
             delete(Event).where(
                 Event.calendar_id == cal.id, Event.origin == account.provider

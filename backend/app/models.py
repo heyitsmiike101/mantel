@@ -206,6 +206,35 @@ class Event(TimestampMixin, Base):
         self.google_etag = value
 
 
+class EventIdentifier(Base):
+    __tablename__ = "event_identifiers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
+class EventHistory(Base):
+    __tablename__ = "event_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[int] = mapped_column(Integer, index=True)
+    calendar_id: Mapped[int] = mapped_column(Integer, index=True)
+    calendar_name: Mapped[str] = mapped_column(String(255))
+    calendar_source: Mapped[str] = mapped_column(String(32))
+    calendar_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    action: Mapped[str] = mapped_column(String(32))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    title: Mapped[str] = mapped_column(String(500))
+    description: Mapped[str | None] = mapped_column(Text)
+    location: Mapped[str | None] = mapped_column(String(500))
+    start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    all_day: Mapped[bool] = mapped_column(Boolean)
+    timezone: Mapped[str | None] = mapped_column(String(64))
+    recurrence_rule: Mapped[str | None] = mapped_column(Text)
+    exdates: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(32))
+
+
 class DashboardWidget(TimestampMixin, Base):
     __tablename__ = "dashboard_widgets"
 

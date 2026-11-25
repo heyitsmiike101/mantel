@@ -561,6 +561,7 @@
   touch-action: pan-y;
   z-index: 100;
   padding: 12px;
+  padding-bottom: calc(12px + var(--keyboard-height, 0px));
 }
 
 .modal__card {

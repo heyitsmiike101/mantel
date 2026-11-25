@@ -8,11 +8,11 @@ import { googleRedirectProblem, localhostAlternative, tunnelCommand } from './go
 export function GoogleTab() {
   const { data: settings } = useSettings()
   const { data: users = [] } = useUsers()
-  const { data: allAccounts = [], refetch: refetchAccounts } = useQuery({
+  const { data: allAccounts = [] } = useQuery({
     queryKey: ['accounts'],
     queryFn: () => api.get<LinkedAccount[]>('/accounts'),
   })
-  const { data: status, refetch: refetchStatus } = useQuery({
+  const { data: status } = useQuery({
     queryKey: ['sync-status'],
     queryFn: () => api.get<SyncStatus>('/sync/status'),
     refetchInterval: 30_000,
@@ -35,6 +35,10 @@ export function GoogleTab() {
   const unlink = useEntityMutation(
     (id: number) => api.del<void>(`/accounts/${id}`),
     ['accounts', 'calendars', 'events', 'sync-status'],
+  )
+  const sync = useEntityMutation(
+    () => api.post('/sync/run'),
+    ['events', 'calendars', 'sync-status', 'accounts'],
   )
 
   const accounts = allAccounts.filter((a) => a.provider === 'google')
@@ -67,16 +71,6 @@ export function GoogleTab() {
       window.location.href = url
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start the Google sign-in.')
-      setBusy(false)
-    }
-  }
-
-  const syncNow = async () => {
-    setBusy(true)
-    try {
-      await api.post('/sync/run')
-      await Promise.all([refetchStatus(), refetchAccounts()])
-    } finally {
       setBusy(false)
     }
   }
@@ -247,6 +241,7 @@ export function GoogleTab() {
       })}
 
       {error && <p className="banner banner--warn">{error}</p>}
+      {sync.isError && <p className="banner banner--warn">{sync.error instanceof Error ? sync.error.message : 'Could not sync calendars.'}</p>}
 
       {/* Which calendars are shown, who owns them, and whether each one syncs all live
           in Settings -> Calendars. This tab is about the connection to Google. */}
@@ -256,8 +251,8 @@ export function GoogleTab() {
             Syncs every {Math.round(status.interval_seconds / 60)} min
             {status.pending_pushes > 0 && ` · ${status.pending_pushes} change(s) to send`}
           </div>
-          <button className="btn" onClick={syncNow} disabled={busy || !configured}>
-            {busy ? 'Syncing…' : 'Sync now'}
+          <button className="btn" onClick={() => sync.mutate(undefined)} disabled={busy || sync.isPending || !configured}>
+            {sync.isPending ? 'Syncing…' : 'Sync now'}
           </button>
         </div>
       )}
